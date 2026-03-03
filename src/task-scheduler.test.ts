@@ -10,12 +10,9 @@ describe('task scheduler', () => {
   beforeEach(() => {
     _initTestDatabase();
     _resetSchedulerLoopForTests();
-    vi.useFakeTimers();
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
+  afterEach(() => {});
 
   it('pauses due tasks with invalid group folders to prevent retry churn', async () => {
     createTask({
@@ -45,7 +42,7 @@ describe('task scheduler', () => {
       sendMessage: async () => {},
     });
 
-    await vi.advanceTimersByTimeAsync(10);
+    await new Promise((r) => setTimeout(r, 10));
 
     const task = getTaskById('task-invalid-folder');
     expect(task?.status).toBe('paused');

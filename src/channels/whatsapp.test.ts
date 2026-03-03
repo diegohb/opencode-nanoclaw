@@ -27,19 +27,6 @@ vi.mock('../db.js', () => ({
   updateChatName: vi.fn(),
 }));
 
-// Mock fs
-vi.mock('fs', async () => {
-  const actual = await vi.importActual<typeof import('fs')>('fs');
-  return {
-    ...actual,
-    default: {
-      ...actual,
-      existsSync: vi.fn(() => true),
-      mkdirSync: vi.fn(),
-    },
-  };
-});
-
 // Mock child_process (used for osascript notification)
 vi.mock('child_process', () => ({
   exec: vi.fn(),
@@ -145,7 +132,7 @@ async function triggerMessages(messages: unknown[]) {
 describe('WhatsAppChannel', () => {
   beforeEach(() => {
     fakeSocket = createFakeSocket();
-    vi.mocked(getLastGroupSync).mockReturnValue(null);
+    (getLastGroupSync as any).mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -180,7 +167,7 @@ describe('WhatsAppChannel', () => {
     it('falls back gracefully when version fetch fails', async () => {
       const { fetchLatestWaWebVersion } =
         await import('@whiskeysockets/baileys');
-      vi.mocked(fetchLatestWaWebVersion).mockRejectedValueOnce(
+      (fetchLatestWaWebVersion as any).mockRejectedValueOnce(
         new Error('network error'),
       );
 
@@ -255,7 +242,6 @@ describe('WhatsAppChannel', () => {
 
   describe('authentication', () => {
     it('exits process when QR code is emitted (no auth state)', async () => {
-      vi.useFakeTimers();
       const mockExit = vi
         .spyOn(process, 'exit')
         .mockImplementation(() => undefined as never);
@@ -267,17 +253,16 @@ describe('WhatsAppChannel', () => {
       channel.connect().catch(() => {});
 
       // Flush microtasks so connectInternal registers handlers
-      await vi.advanceTimersByTimeAsync(0);
+      await new Promise((r) => setTimeout(r, 0));
 
       // Emit QR code event
       fakeSocket._ev.emit('connection.update', { qr: 'some-qr-data' });
 
       // Advance timer past the 1000ms setTimeout before exit
-      await vi.advanceTimersByTimeAsync(1500);
+      await new Promise((r) => setTimeout(r, 1500));
 
       expect(mockExit).toHaveBeenCalledWith(1);
       mockExit.mockRestore();
-      vi.useRealTimers();
     });
   });
 
@@ -795,7 +780,7 @@ describe('WhatsAppChannel', () => {
 
     it('skips sync when synced recently', async () => {
       // Last sync was 1 hour ago (within 24h threshold)
-      vi.mocked(getLastGroupSync).mockReturnValue(
+      (getLastGroupSync as any).mockReturnValue(
         new Date(Date.now() - 60 * 60 * 1000).toISOString(),
       );
 
@@ -810,7 +795,7 @@ describe('WhatsAppChannel', () => {
     });
 
     it('forces sync regardless of cache', async () => {
-      vi.mocked(getLastGroupSync).mockReturnValue(
+      (getLastGroupSync as any).mockReturnValue(
         new Date(Date.now() - 60 * 60 * 1000).toISOString(),
       );
 
@@ -856,7 +841,7 @@ describe('WhatsAppChannel', () => {
       await connectChannel(channel);
 
       // Clear any calls from the automatic sync on connect
-      vi.mocked(updateChatName).mockClear();
+      (updateChatName as any).mockClear();
 
       await channel.syncGroupMetadata(true);
 

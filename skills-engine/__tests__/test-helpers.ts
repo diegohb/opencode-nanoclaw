@@ -17,6 +17,7 @@ export function setupNanoclawDir(tmpDir: string): void {
 
 export function writeState(tmpDir: string, state: any): void {
   const statePath = path.join(tmpDir, '.nanoclaw', 'state.yaml');
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
   fs.writeFileSync(statePath, stringify(state), 'utf-8');
 }
 

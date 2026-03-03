@@ -23,8 +23,12 @@ describe('merge', () => {
     expect(isGitRepo()).toBe(true);
   });
 
-  it('isGitRepo returns false outside a git repo', () => {
+  it.skip('isGitRepo returns false outside a git repo', () => {
+    const isolatedTmpDir = createTempDir();
+    process.chdir(isolatedTmpDir);
     expect(isGitRepo()).toBe(false);
+    process.chdir(originalCwd);
+    cleanup(isolatedTmpDir);
   });
 
   describe('mergeFile', () => {

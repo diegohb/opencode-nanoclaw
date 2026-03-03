@@ -65,7 +65,7 @@ function toSafeProjectRelativePath(
     );
   }
 
-  return path.relative(realRoot, realResolved);
+  return path.relative(realRoot, realResolved).split(path.sep).join('/');
 }
 
 function sanitizeRemapEntries(

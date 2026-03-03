@@ -1,10 +1,11 @@
-import { execFileSync, execSync } from 'child_process';
+import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
 import { parse, stringify } from 'yaml';
 
 import { BASE_DIR, CUSTOM_DIR } from './constants.js';
+import { generateUnifiedDiff } from './diff.js';
 import {
   computeFileHash,
   readState,
@@ -95,27 +96,17 @@ export function commitCustomize(): void {
     const basePath = path.join(baseDir, relativePath);
     const currentPath = path.join(cwd, relativePath);
 
-    // Use /dev/null if either side doesn't exist
     const oldPath = fs.existsSync(basePath) ? basePath : '/dev/null';
     const newPath = fs.existsSync(currentPath) ? currentPath : '/dev/null';
 
     try {
-      const diff = execFileSync('diff', ['-ruN', oldPath, newPath], {
-        encoding: 'utf-8',
-      });
-      combinedPatch += diff;
-    } catch (err: unknown) {
-      const execErr = err as { status?: number; stdout?: string };
-      if (execErr.status === 1 && execErr.stdout) {
-        // diff exits 1 when files differ — that's expected
-        combinedPatch += execErr.stdout;
-      } else if (execErr.status === 2) {
-        throw new Error(
-          `diff error for ${relativePath}: diff exited with status 2 (check file permissions or encoding)`,
-        );
-      } else {
-        throw err;
+      const result = generateUnifiedDiff(oldPath, newPath);
+      if (result.diff.trim()) {
+        combinedPatch += result.diff;
       }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`diff error for ${relativePath}: ${msg}`);
     }
   }
 

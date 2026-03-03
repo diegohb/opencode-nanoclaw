@@ -57,10 +57,23 @@ function safePath(projectRoot: string, relativePath: string): string | null {
     return null;
   }
 
-  const realRoot = fs.realpathSync(root);
-  const realParent = resolveRealPathWithSymlinkAwareAnchor(
-    path.dirname(resolved),
-  );
+  let realRoot: string;
+  try {
+    realRoot = fs.realpathSync(root);
+  } catch {
+    // realpathSync may fail on Windows temp dirs or newly created
+    // Fall back to using the resolved root path
+    realRoot = root;
+  }
+
+  let realParent: string;
+  try {
+    realParent = resolveRealPathWithSymlinkAwareAnchor(path.dirname(resolved));
+  } catch {
+    // If we can't resolve the parent path, the path is invalid
+    return null;
+  }
+
   if (!isWithinRoot(realRoot, realParent)) {
     return null;
   }
@@ -135,8 +148,15 @@ export function executeFileOps(
           result.executed.push(op);
           break;
         }
-        fs.unlinkSync(delPath);
-        result.executed.push(op);
+        try {
+          fs.unlinkSync(delPath);
+          result.executed.push(op);
+        } catch {
+          result.warnings.push(
+            `delete: file does not exist (skipped): ${op.path}`,
+          );
+          result.executed.push(op);
+        }
         break;
       }
 

@@ -1,4 +1,3 @@
-import { execFileSync } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
@@ -6,6 +5,7 @@ import path from 'path';
 
 import { clearBackup, createBackup, restoreBackup } from './backup.js';
 import { BASE_DIR, NANOCLAW_DIR } from './constants.js';
+import { generateUnifiedDiff } from './diff.js';
 import { copyDir } from './fs-utils.js';
 import { acquireLock } from './lock.js';
 import { mergeFile } from './merge.js';
@@ -98,21 +98,13 @@ export async function rebase(newBasePath?: string): Promise<RebaseResult> {
         if (oldPath === '/dev/null' && newPath === '/dev/null') continue;
 
         try {
-          const diff = execFileSync('diff', ['-ruN', oldPath, newPath], {
-            encoding: 'utf-8',
-          });
-          if (diff.trim()) {
-            combinedPatch += diff;
+          const result = generateUnifiedDiff(oldPath, newPath);
+          if (result.diff.trim()) {
+            combinedPatch += result.diff;
             filesInPatch++;
           }
         } catch (err: unknown) {
-          const execErr = err as { status?: number; stdout?: string };
-          if (execErr.status === 1 && execErr.stdout) {
-            combinedPatch += execErr.stdout;
-            filesInPatch++;
-          } else {
-            throw err;
-          }
+          throw err;
         }
       }
 

@@ -30,7 +30,7 @@ function walkDir(dir: string, root?: string): string[] {
     if (entry.isDirectory()) {
       results.push(...walkDir(fullPath, rootDir));
     } else {
-      results.push(path.relative(rootDir, fullPath));
+      results.push(path.relative(rootDir, fullPath).split(path.sep).join('/'));
     }
   }
   return results;

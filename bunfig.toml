@@ -1,0 +1,3 @@
+# Test configuration
+# Tests are run from specific directories via package.json script
+# to exclude dist/ and other build artifacts

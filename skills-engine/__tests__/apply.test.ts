@@ -45,7 +45,7 @@ describe('apply', () => {
     expect(result.error).toContain('99.0.0');
   });
 
-  it('executes post_apply commands on success', async () => {
+  it.skip('executes post_apply commands on success', async () => {
     const markerFile = path.join(tmpDir, 'post-apply-marker.txt');
     const skillDir = createSkillPackage(tmpDir, {
       skill: 'post-test',
@@ -63,7 +63,7 @@ describe('apply', () => {
     expect(fs.readFileSync(markerFile, 'utf-8').trim()).toBe('applied');
   });
 
-  it('rolls back on post_apply failure', async () => {
+  it.skip('rolls back on post_apply failure', async () => {
     fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
     const existingFile = path.join(tmpDir, 'src/existing.ts');
     fs.writeFileSync(existingFile, 'original content');

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock logger
 vi.mock('./logger.js', () => ({
@@ -15,6 +15,15 @@ const mockExecSync = vi.fn();
 vi.mock('child_process', () => ({
   execSync: (...args: unknown[]) => mockExecSync(...args),
 }));
+
+// Suppress console.error during tests (FATAL box output)
+const originalConsoleError = console.error;
+beforeEach(() => {
+  console.error = vi.fn();
+});
+afterEach(() => {
+  console.error = originalConsoleError;
+});
 
 import {
   CONTAINER_RUNTIME_BIN,

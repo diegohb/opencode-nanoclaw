@@ -20,7 +20,13 @@ export function createBackup(filePaths: string[]): void {
     fs.mkdirSync(path.dirname(backupPath), { recursive: true });
 
     if (fs.existsSync(absPath)) {
-      fs.copyFileSync(absPath, backupPath);
+      try {
+        fs.copyFileSync(absPath, backupPath);
+      } catch {
+        // File may have been deleted between existsSync and copyFileSync
+        // Write tombstone instead
+        fs.writeFileSync(backupPath + TOMBSTONE_SUFFIX, '', 'utf-8');
+      }
     } else {
       // File doesn't exist yet — write a tombstone so restore can delete it
       fs.writeFileSync(backupPath + TOMBSTONE_SUFFIX, '', 'utf-8');
