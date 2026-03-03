@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 
 /**
  * Tests for the register step.
@@ -11,7 +11,7 @@ import Database from 'better-sqlite3';
 
 function createTestDb(): Database.Database {
   const db = new Database(':memory:');
-  db.exec(`CREATE TABLE IF NOT EXISTS registered_groups (
+  db.run(`CREATE TABLE IF NOT EXISTS registered_groups (
     jid TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     folder TEXT NOT NULL UNIQUE,

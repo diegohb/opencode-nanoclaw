@@ -8,7 +8,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 
 import { STORE_DIR } from '../src/config.js';
 import { logger } from '../src/logger.js';
@@ -115,7 +115,7 @@ import makeWASocket, { useMultiFileAuthState, makeCacheableSignalKeyStore, Brows
 import pino from 'pino';
 import path from 'path';
 import fs from 'fs';
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 
 const logger = pino({ level: 'silent' });
 const authDir = path.join('store', 'auth');
@@ -128,7 +128,7 @@ if (!fs.existsSync(authDir)) {
 
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
-db.exec('CREATE TABLE IF NOT EXISTS chats (jid TEXT PRIMARY KEY, name TEXT, last_message_time TEXT)');
+db.run('CREATE TABLE IF NOT EXISTS chats (jid TEXT PRIMARY KEY, name TEXT, last_message_time TEXT)');
 
 const upsert = db.prepare(
   'INSERT INTO chats (jid, name, last_message_time) VALUES (?, ?, ?) ON CONFLICT(jid) DO UPDATE SET name = excluded.name'
@@ -179,20 +179,14 @@ sock.ev.on('connection.update', async (update) => {
 });
 `;
 
-    const tmpScript = path.join(projectRoot, '.tmp-group-sync.mjs');
-    fs.writeFileSync(tmpScript, syncScript, 'utf-8');
-    try {
-      const output = execSync(`node ${tmpScript}`, {
-        cwd: projectRoot,
-        encoding: 'utf-8',
-        timeout: 45000,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      syncOk = output.includes('SYNCED:');
-      logger.info({ output: output.trim() }, 'Sync output');
-    } finally {
-      try { fs.unlinkSync(tmpScript); } catch { /* ignore cleanup errors */ }
-    }
+    const output = execSync(`bun -e ${JSON.stringify(syncScript)}`, {
+      cwd: projectRoot,
+      encoding: 'utf-8',
+      timeout: 45000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    syncOk = output.includes('SYNCED:');
+    logger.info({ output: output.trim() }, 'Sync output');
   } catch (err) {
     logger.error({ err }, 'Sync failed');
   }

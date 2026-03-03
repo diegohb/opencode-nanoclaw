@@ -7,7 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 
 import { STORE_DIR } from '../src/config.js';
 import { isValidGroupFolder } from '../src/group-folder.js';
@@ -105,7 +105,7 @@ export async function run(args: string[]): Promise<void> {
 
   const db = new Database(dbPath);
   // Ensure schema exists
-  db.exec(`CREATE TABLE IF NOT EXISTS registered_groups (
+  db.run(`CREATE TABLE IF NOT EXISTS registered_groups (
     jid TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     folder TEXT NOT NULL UNIQUE,

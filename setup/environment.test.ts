@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import fs from 'fs';
 
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 
 /**
  * Tests for the environment check step.
@@ -22,7 +22,7 @@ describe('registered groups DB query', () => {
 
   beforeEach(() => {
     db = new Database(':memory:');
-    db.exec(`CREATE TABLE IF NOT EXISTS registered_groups (
+    db.run(`CREATE TABLE IF NOT EXISTS registered_groups (
       jid TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       folder TEXT NOT NULL UNIQUE,
