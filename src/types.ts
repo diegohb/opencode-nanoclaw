@@ -30,6 +30,11 @@ export interface AllowedRoot {
 export interface ContainerConfig {
   additionalMounts?: AdditionalMount[];
   timeout?: number; // Default: 300000 (5 minutes)
+  opencodeConfig?: {
+    provider?: string; // default: 'opencode'
+    apiKey?: string; // env var name (optional for free providers)
+    model?: string; // default: 'opencode/kimi-k2.5-free'
+  };
 }
 
 export interface RegisteredGroup {
