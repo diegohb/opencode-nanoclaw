@@ -113,55 +113,53 @@ function buildVolumeMounts(
     }
   }
 
-  // Per-group Claude sessions directory (isolated from other groups)
-  // Each group gets their own .claude/ to prevent cross-group session access
-  const groupSessionsDir = path.join(
+  // Per-group OpenCode state directory for session persistence
+  const openCodeStateDir = path.join(
     DATA_DIR,
     'sessions',
     group.folder,
-    '.claude',
+    'opencode-state',
   );
-  fs.mkdirSync(groupSessionsDir, { recursive: true });
-  const settingsFile = path.join(groupSessionsDir, 'settings.json');
-  if (!fs.existsSync(settingsFile)) {
-    fs.writeFileSync(
-      settingsFile,
-      JSON.stringify(
-        {
-          env: {
-            // Enable agent swarms (subagent orchestration)
-            // https://code.claude.com/docs/en/agent-teams#orchestrate-teams-of-claude-code-sessions
-            CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
-            // Load CLAUDE.md from additional mounted directories
-            // https://code.claude.com/docs/en/memory#load-memory-from-additional-directories
-            CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
-            // Enable Claude's memory feature (persists user preferences between sessions)
-            // https://code.claude.com/docs/en/memory#manage-auto-memory
-            CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
-          },
-        },
-        null,
-        2,
-      ) + '\n',
-    );
-  }
+  fs.mkdirSync(openCodeStateDir, { recursive: true });
+  mounts.push({
+    hostPath: openCodeStateDir,
+    containerPath: '/workspace/opencode-state',
+    readonly: false,
+  });
 
-  // Sync skills from container/skills/ into each group's .claude/skills/
+  // Sync container-side skills (agent-browser etc.) into a workspace location
   const skillsSrc = path.join(process.cwd(), 'container', 'skills');
-  const skillsDst = path.join(groupSessionsDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
+    const skillsDst = path.join(
+      DATA_DIR,
+      'sessions',
+      group.folder,
+      'container-skills',
+    );
     for (const skillDir of fs.readdirSync(skillsSrc)) {
       const srcDir = path.join(skillsSrc, skillDir);
       if (!fs.statSync(srcDir).isDirectory()) continue;
-      const dstDir = path.join(skillsDst, skillDir);
-      fs.cpSync(srcDir, dstDir, { recursive: true });
+      fs.cpSync(srcDir, path.join(skillsDst, skillDir), { recursive: true });
+    }
+    mounts.push({
+      hostPath: skillsDst,
+      containerPath: '/workspace/skills',
+      readonly: true,
+    });
+  }
+
+  // Shadow .env so the agent cannot read secrets from any mounted directory.
+  // Secrets are passed via stdin instead (see readSecrets()).
+  if (isMain) {
+    const envFile = path.join(projectRoot, '.env');
+    if (fs.existsSync(envFile)) {
+      mounts.push({
+        hostPath: '/dev/null',
+        containerPath: '/workspace/project/.env',
+        readonly: true,
+      });
     }
   }
-  mounts.push({
-    hostPath: groupSessionsDir,
-    containerPath: '/home/node/.claude',
-    readonly: false,
-  });
 
   // Per-group IPC namespace: each group gets its own IPC directory
   // This prevents cross-group privilege escalation via IPC
@@ -207,6 +205,23 @@ function buildVolumeMounts(
       isMain,
     );
     mounts.push(...validatedMounts);
+
+    // Also shadow .env in additional mounts that might contain secrets
+    if (group.containerConfig?.additionalMounts) {
+      for (const mount of group.containerConfig.additionalMounts) {
+        const envInMount = path.join(mount.hostPath, '.env');
+        if (fs.existsSync(envInMount)) {
+          const containerMountPath =
+            mount.containerPath ||
+            `/workspace/extra/${path.basename(mount.hostPath)}`;
+          mounts.push({
+            hostPath: '/dev/null',
+            containerPath: path.join(containerMountPath, '.env'),
+            readonly: true,
+          });
+        }
+      }
+    }
   }
 
   return mounts;
