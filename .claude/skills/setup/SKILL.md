@@ -20,7 +20,6 @@ Run `bash setup.sh` and parse the status block.
   - Linux: `curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs`, or nvm
   - After installing Node, re-run `bash setup.sh`
 - If DEPS_OK=false → Read `logs/setup.log`. Try: delete `node_modules` and `package-lock.json`, re-run `bash setup.sh`. If native module build fails, install build tools (`xcode-select --install` on macOS, `build-essential` on Linux), then retry.
-- If NATIVE_OK=false → better-sqlite3 failed to load. Install build tools and re-run.
 - Record PLATFORM and IS_WSL for later steps.
 
 ## 2. Check Environment
@@ -68,6 +67,7 @@ grep -q "CONTAINER_RUNTIME_BIN = 'container'" src/container-runtime.ts && echo "
 Run `npx tsx setup/index.ts --step container -- --runtime <chosen>` and parse the status block.
 
 **If BUILD_OK=false:** Read `logs/setup.log` tail for the build error.
+
 - Cache issue (stale layers): `docker builder prune -f` (Docker) or `container builder stop && container builder rm && container builder start` (Apple Container). Retry.
 - Dockerfile syntax or missing files: diagnose from the log and fix, then retry.
 
@@ -113,6 +113,7 @@ AskUserQuestion: Shared number or dedicated? → AskUserQuestion: Trigger word? 
 **DM with bot:** Ask for bot's number, JID = `NUMBER@s.whatsapp.net`
 
 **Group:**
+
 1. `npx tsx setup/index.ts --step groups` (Bash timeout: 60000ms)
 2. BUILD=failed → fix TypeScript, re-run. GROUPS_IN_DB=0 → check logs.
 3. `npx tsx setup/index.ts --step groups -- --list` for pipe-separated JID|name lines.
@@ -132,6 +133,7 @@ AskUserQuestion: Agent access to external directories?
 ## 10. Start Service
 
 If service already running: unload first.
+
 - macOS: `launchctl unload ~/Library/LaunchAgents/com.nanoclaw.plist`
 - Linux: `systemctl --user stop nanoclaw` (or `systemctl stop nanoclaw` if root)
 
@@ -143,6 +145,7 @@ Run `npx tsx setup/index.ts --step service` and parse the status block.
 
 1. Immediate fix: `sudo setfacl -m u:$(whoami):rw /var/run/docker.sock`
 2. Persistent fix (re-applies after every Docker restart):
+
 ```bash
 sudo mkdir -p /etc/systemd/system/docker.service.d
 sudo tee /etc/systemd/system/docker.service.d/socket-acl.conf << 'EOF'
@@ -151,9 +154,11 @@ ExecStartPost=/usr/bin/setfacl -m u:USERNAME:rw /var/run/docker.sock
 EOF
 sudo systemctl daemon-reload
 ```
+
 Replace `USERNAME` with the actual username (from `whoami`). Run the two `sudo` commands separately — the `tee` heredoc first, then `daemon-reload`. After user confirms setfacl ran, re-run the service step.
 
 **If SERVICE_LOADED=false:**
+
 - Read `logs/setup.log` for the error.
 - macOS: check `launchctl list | grep nanoclaw`. If PID=`-` and status non-zero, read `logs/nanoclaw.error.log`.
 - Linux: check `systemctl --user status nanoclaw`.
@@ -164,6 +169,7 @@ Replace `USERNAME` with the actual username (from `whoami`). Run the two `sudo` 
 Run `npx tsx setup/index.ts --step verify` and parse the status block.
 
 **If STATUS=failed, fix each:**
+
 - SERVICE=stopped → `npm run build`, then restart: `launchctl kickstart -k gui/$(id -u)/com.nanoclaw` (macOS) or `systemctl --user restart nanoclaw` (Linux) or `bash start-nanoclaw.sh` (WSL nohup)
 - SERVICE=not_found → re-run step 10
 - CREDENTIALS=missing → re-run step 4

@@ -63,7 +63,6 @@ check_node() {
 
 install_deps() {
   DEPS_OK="false"
-  NATIVE_OK="false"
 
   if [ "$NODE_OK" = "false" ]; then
     log "Skipping npm install — Node not available"
@@ -86,15 +85,6 @@ install_deps() {
   else
     log "npm install failed"
     return
-  fi
-
-  # Verify native module (better-sqlite3)
-  log "Verifying native modules"
-  if node -e "require('better-sqlite3')" >> "$LOG_FILE" 2>&1; then
-    NATIVE_OK="true"
-    log "better-sqlite3 loads OK"
-  else
-    log "better-sqlite3 failed to load"
   fi
 }
 
@@ -131,8 +121,6 @@ if [ "$NODE_OK" = "false" ]; then
   STATUS="node_missing"
 elif [ "$DEPS_OK" = "false" ]; then
   STATUS="deps_failed"
-elif [ "$NATIVE_OK" = "false" ]; then
-  STATUS="native_failed"
 fi
 
 cat <<EOF
@@ -144,7 +132,6 @@ NODE_VERSION: $NODE_VERSION
 NODE_OK: $NODE_OK
 NODE_PATH: ${NODE_PATH_FOUND:-not_found}
 DEPS_OK: $DEPS_OK
-NATIVE_OK: $NATIVE_OK
 HAS_BUILD_TOOLS: $HAS_BUILD_TOOLS
 STATUS: $STATUS
 LOG: logs/setup.log
@@ -156,6 +143,6 @@ log "=== Bootstrap completed: $STATUS ==="
 if [ "$NODE_OK" = "false" ]; then
   exit 2
 fi
-if [ "$DEPS_OK" = "false" ] || [ "$NATIVE_OK" = "false" ]; then
+if [ "$DEPS_OK" = "false" ]; then
   exit 1
 fi

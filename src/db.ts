@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 import fs from 'fs';
 import path from 'path';
 
@@ -12,10 +12,14 @@ import {
   TaskRunLog,
 } from './types.js';
 
-let db: Database.Database;
+let db: Database;
 
-function createSchema(database: Database.Database): void {
-  database.exec(`
+function nullToUndefined<T>(value: T | null | undefined): T | undefined {
+  return value ?? undefined;
+}
+
+function createSchema(database: Database): void {
+  database.run(`
     CREATE TABLE IF NOT EXISTS chats (
       jid TEXT PRIMARY KEY,
       name TEXT,
@@ -108,8 +112,8 @@ function createSchema(database: Database.Database): void {
 
   // Add channel and is_group columns if they don't exist (migration for existing DBs)
   try {
-    database.exec(`ALTER TABLE chats ADD COLUMN channel TEXT`);
-    database.exec(`ALTER TABLE chats ADD COLUMN is_group INTEGER DEFAULT 0`);
+    database.run(`ALTER TABLE chats ADD COLUMN channel TEXT`);
+    database.run(`ALTER TABLE chats ADD COLUMN is_group INTEGER DEFAULT 0`);
     // Backfill from JID patterns
     database.exec(
       `UPDATE chats SET channel = 'whatsapp', is_group = 1 WHERE jid LIKE '%@g.us'`,
@@ -363,9 +367,11 @@ export function createTask(
 }
 
 export function getTaskById(id: string): ScheduledTask | undefined {
-  return db.prepare('SELECT * FROM scheduled_tasks WHERE id = ?').get(id) as
-    | ScheduledTask
-    | undefined;
+  return nullToUndefined(
+    db
+      .prepare('SELECT * FROM scheduled_tasks WHERE id = ?')
+      .get(id) as ScheduledTask | null,
+  );
 }
 
 export function getTasksForGroup(groupFolder: string): ScheduledTask[] {
@@ -392,7 +398,7 @@ export function updateTask(
   >,
 ): void {
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: (string | null)[] = [];
 
   if (updates.prompt !== undefined) {
     fields.push('prompt = ?');
