@@ -140,11 +140,17 @@ function writeOpencodeConfig(containerInput: ContainerInput): void {
     }
   }
 
-  // Resolve API key from secrets (only if explicitly configured)
-  const apiKey =
-    oc?.apiKey && containerInput.secrets?.[oc.apiKey]
-      ? containerInput.secrets[oc.apiKey]
-      : undefined;
+  // Set API keys as environment variables (OpenCode reads from env, not config)
+  if (containerInput.secrets) {
+    if (containerInput.secrets['ANTHROPIC_API_KEY']) {
+      process.env.ANTHROPIC_API_KEY =
+        containerInput.secrets['ANTHROPIC_API_KEY'];
+    }
+    if (containerInput.secrets['OPENROUTER_API_KEY']) {
+      process.env.OPENROUTER_API_KEY =
+        containerInput.secrets['OPENROUTER_API_KEY'];
+    }
+  }
 
   // MCP server path (compiled dist location at container runtime)
   const mcpServerPath = '/tmp/dist/ipc-mcp-stdio.js';
@@ -156,11 +162,6 @@ function writeOpencodeConfig(containerInput: ContainerInput): void {
       edit: 'allow',
       bash: 'allow',
       webfetch: 'allow',
-    },
-    provider: {
-      [provider]: {
-        ...(apiKey ? { apiKey } : {}),
-      },
     },
     mcp: {
       nanoclaw: {
