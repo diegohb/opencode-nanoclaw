@@ -41,3 +41,6 @@ agents-sdk-docs
 .grepai/*.gob.lock
 .opencode/node_modules/
 .opencode/.cache/
+
+# Test output
+tests/output/
