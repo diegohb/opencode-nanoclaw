@@ -1,9 +1,16 @@
 {
-    "$schema": "https://opencode.ai/config.json",
-    "plugin": ["opencode-intellisearch", "@qforge/opencode-architect"],
-    "mcp": {
-        "serena": {
-            "enabled": true
-        }
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "opencode-intellisearch"
+  ],
+  "mcp": {
+    "serena": {
+      "enabled": true
     }
+  },
+  "permission": {
+    "skill": {
+      "intellisearch": "allow"
+    }
+  }
 }
