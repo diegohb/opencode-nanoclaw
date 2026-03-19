@@ -157,6 +157,7 @@ For each selected channel, invoke its skill:
 - **Telegram:** Invoke `/add-telegram`
 - **Slack:** Invoke `/add-slack`
 - **Discord:** Invoke `/add-discord`
+- **MS Teams:** Invoke `/add-ms-teams`
 
 Each skill will:
 

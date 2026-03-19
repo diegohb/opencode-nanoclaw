@@ -16,8 +16,23 @@ import { request as httpRequest, RequestOptions } from 'http';
 
 import { readEnvFile } from './env.js';
 import { logger } from './logger.js';
+import { NewMessage } from './types.js';
 
 export type AuthMode = 'api-key' | 'oauth';
+
+type SidecarInboundCallback = (payload: {
+  channel: string;
+  jid: string;
+  message: NewMessage;
+  metadata?: { name?: string; isGroup?: boolean; channel?: string };
+}) => void;
+
+let sidecarCallback: SidecarInboundCallback | null = null;
+
+/** Register a callback for sidecar inbound messages. Called by index.ts at startup. */
+export function registerSidecarCallback(cb: SidecarInboundCallback): void {
+  sidecarCallback = cb;
+}
 
 export interface ProxyConfig {
   authMode: AuthMode;
@@ -46,6 +61,33 @@ export function startCredentialProxy(
 
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
+      // --- Sidecar inbound route ---
+      if (req.url === '/channel/inbound' && req.method === 'POST') {
+        const chunks: Buffer[] = [];
+        req.on('data', (c) => chunks.push(c));
+        req.on('end', () => {
+          try {
+            const payload = JSON.parse(Buffer.concat(chunks).toString());
+            if (!sidecarCallback) {
+              res.writeHead(503);
+              res.end(
+                JSON.stringify({ error: 'No sidecar callback registered' }),
+              );
+              return;
+            }
+            sidecarCallback(payload);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+          } catch (err) {
+            logger.error({ err }, 'Failed to process sidecar inbound');
+            res.writeHead(400);
+            res.end(JSON.stringify({ error: 'Invalid JSON' }));
+          }
+        });
+        return; // Don't fall through to upstream proxy
+      }
+
+      // --- Existing proxy logic ---
       const chunks: Buffer[] = [];
       req.on('data', (c) => chunks.push(c));
       req.on('end', () => {

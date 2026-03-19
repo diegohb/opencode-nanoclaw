@@ -10,3 +10,6 @@
 // telegram
 
 // whatsapp
+
+// msteams
+import './msteams.js';

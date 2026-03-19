@@ -9,7 +9,10 @@ import {
   TIMEZONE,
   TRIGGER_PATTERN,
 } from './config.js';
-import { startCredentialProxy } from './credential-proxy.js';
+import {
+  startCredentialProxy,
+  registerSidecarCallback,
+} from './credential-proxy.js';
 import './channels/index.js';
 import {
   getChannelFactory,
@@ -518,6 +521,21 @@ async function main(): Promise<void> {
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
     registeredGroups: () => registeredGroups,
   };
+
+  // Register sidecar callback for inbound messages from sidecar containers
+  registerSidecarCallback((payload) => {
+    const { channel, jid, message, metadata } = payload;
+    if (metadata) {
+      channelOpts.onChatMetadata(
+        jid,
+        message.timestamp,
+        metadata.name,
+        metadata.channel || channel,
+        metadata.isGroup,
+      );
+    }
+    channelOpts.onMessage(jid, message);
+  });
 
   // Create and connect all registered channels.
   // Each channel self-registers via the barrel import above.
