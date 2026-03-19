@@ -8,29 +8,29 @@ Single Node.js process with skill-based channel system. Channels (WhatsApp, Tele
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/index.ts` | Orchestrator: state, message loop, agent invocation |
-| `src/channels/registry.ts` | Channel registry (self-registration at startup) |
-| `src/ipc.ts` | IPC watcher and task processing |
-| `src/router.ts` | Message formatting and outbound routing |
-| `src/config.ts` | Trigger pattern, paths, intervals |
-| `src/container-runner.ts` | Spawns agent containers with mounts |
-| `src/task-scheduler.ts` | Runs scheduled tasks |
-| `src/db.ts` | SQLite operations |
-| `groups/{name}/CLAUDE.md` | Per-group memory (isolated) |
+| File                                | Purpose                                                    |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `src/index.ts`                      | Orchestrator: state, message loop, agent invocation        |
+| `src/channels/registry.ts`          | Channel registry (self-registration at startup)            |
+| `src/ipc.ts`                        | IPC watcher and task processing                            |
+| `src/router.ts`                     | Message formatting and outbound routing                    |
+| `src/config.ts`                     | Trigger pattern, paths, intervals                          |
+| `src/container-runner.ts`           | Spawns agent containers with mounts                        |
+| `src/task-scheduler.ts`             | Runs scheduled tasks                                       |
+| `src/db.ts`                         | SQLite operations                                          |
+| `groups/{name}/CLAUDE.md`           | Per-group memory (isolated)                                |
 | `container/skills/agent-browser.md` | Browser automation tool (available to all agents via Bash) |
 
 ## Skills
 
-| Skill | When to Use |
-|-------|-------------|
-| `/setup` | First-time installation, authentication, service configuration |
-| `/customize` | Adding channels, integrations, changing behavior |
-| `/debug` | Container issues, logs, troubleshooting |
-| `/update-nanoclaw` | Bring upstream NanoClaw updates into a customized install |
-| `/qodo-pr-resolver` | Fetch and fix Qodo PR review issues interactively or in batch |
-| `/get-qodo-rules` | Load org- and repo-level coding rules from Qodo before code tasks |
+| Skill               | When to Use                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| `/setup`            | First-time installation, authentication, service configuration    |
+| `/customize`        | Adding channels, integrations, changing behavior                  |
+| `/debug`            | Container issues, logs, troubleshooting                           |
+| `/update-nanoclaw`  | Bring upstream NanoClaw updates into a customized install         |
+| `/qodo-pr-resolver` | Fetch and fix Qodo PR review issues interactively or in batch     |
+| `/get-qodo-rules`   | Load org- and repo-level coding rules from Qodo before code tasks |
 
 ## Development
 
@@ -43,6 +43,7 @@ npm run build        # Compile TypeScript
 ```
 
 Service management:
+
 ```bash
 # macOS (launchd)
 launchctl load ~/Library/LaunchAgents/com.nanoclaw.plist
@@ -57,12 +58,17 @@ systemctl --user restart nanoclaw
 
 ## Troubleshooting
 
-**WhatsApp not connecting after upgrade:** WhatsApp is now a separate channel fork, not bundled in core. Run `/add-whatsapp` (or `git remote add whatsapp https://github.com/qwibitai/nanoclaw-whatsapp.git && git fetch whatsapp main && git merge whatsapp/main && npm run build`) to install it. Existing auth credentials and groups are preserved.
+**Channel merge conflicts:** If `git merge` fails on `package-lock.json` during channel installation, resolve with:
+
+```bash
+git checkout --theirs package-lock.json
+git add package-lock.json
+git merge --continue
+```
 
 ## Container Build Cache
 
 The container buildkit caches the build context aggressively. `--no-cache` alone does NOT invalidate COPY steps — the builder's volume retains stale files. To force a truly clean rebuild, prune the builder then re-run `./container/build.sh`.
-
 
 ## grepai - Semantic Code Search
 
@@ -71,6 +77,7 @@ The container buildkit caches the build context aggressively. `--no-cache` alone
 ### When to Use grepai (REQUIRED)
 
 Use `grepai search` INSTEAD OF Grep/Glob/find for:
+
 - Understanding what code does or where functionality lives
 - Finding implementations by intent (e.g., "authentication logic", "error handling")
 - Exploring unfamiliar parts of the codebase
@@ -79,6 +86,7 @@ Use `grepai search` INSTEAD OF Grep/Glob/find for:
 ### When to Use Standard Tools
 
 Only use Grep/Glob when you need:
+
 - Exact text matching (variable names, imports, specific strings)
 - File path patterns (e.g., `**/*.go`)
 
@@ -106,6 +114,7 @@ grepai search "API request validation" --json --compact
 ### Call Graph Tracing
 
 Use `grepai trace` to understand function relationships:
+
 - Finding all callers of a function before modifying it
 - Understanding what functions are called by a given function
 - Visualizing the complete call graph around a symbol
@@ -131,4 +140,3 @@ grepai trace graph "ValidateToken" --depth 3 --json
 2. Use `grepai trace` to understand function relationships
 3. Use `Read` tool to examine files from results
 4. Only use Grep for exact string searches if needed
-

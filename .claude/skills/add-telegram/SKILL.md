@@ -39,10 +39,15 @@ git remote add telegram https://github.com/qwibitai/nanoclaw-telegram.git
 
 ```bash
 git fetch telegram main
-git merge telegram/main
+git merge telegram/main || {
+  git checkout --theirs package-lock.json
+  git add package-lock.json
+  git merge --continue
+}
 ```
 
 This merges in:
+
 - `src/channels/telegram.ts` (TelegramChannel class with self-registration via `registerChannel`)
 - `src/channels/telegram.test.ts` (unit tests with grammy mock)
 - `import './telegram.js'` appended to the channel barrel file `src/channels/index.ts`
@@ -134,9 +139,9 @@ Use the IPC register flow or register directly. The chat ID, name, and folder na
 For a main chat (responds to all messages):
 
 ```typescript
-registerGroup("tg:<chat-id>", {
-  name: "<chat-name>",
-  folder: "telegram_main",
+registerGroup('tg:<chat-id>', {
+  name: '<chat-name>',
+  folder: 'telegram_main',
   trigger: `@${ASSISTANT_NAME}`,
   added_at: new Date().toISOString(),
   requiresTrigger: false,
@@ -147,9 +152,9 @@ registerGroup("tg:<chat-id>", {
 For additional chats (trigger-only):
 
 ```typescript
-registerGroup("tg:<chat-id>", {
-  name: "<chat-name>",
-  folder: "telegram_<group-name>",
+registerGroup('tg:<chat-id>', {
+  name: '<chat-name>',
+  folder: 'telegram_<group-name>',
   trigger: `@${ASSISTANT_NAME}`,
   added_at: new Date().toISOString(),
   requiresTrigger: true,
@@ -163,6 +168,7 @@ registerGroup("tg:<chat-id>", {
 Tell the user:
 
 > Send a message to your registered Telegram chat:
+>
 > - For main chat: Any message works
 > - For non-main: `@Andy hello` or @mention the bot
 >
@@ -179,6 +185,7 @@ tail -f logs/nanoclaw.log
 ### Bot not responding
 
 Check:
+
 1. `TELEGRAM_BOT_TOKEN` is set in `.env` AND synced to `data/env/env`
 2. Chat is registered in SQLite (check with: `sqlite3 store/messages.db "SELECT * FROM registered_groups WHERE jid LIKE 'tg:%'"`)
 3. For non-main chats: message includes trigger pattern
@@ -187,18 +194,21 @@ Check:
 ### Bot only responds to @mentions in groups
 
 Group Privacy is enabled (default). Fix:
+
 1. `@BotFather` > `/mybots` > select bot > **Bot Settings** > **Group Privacy** > **Turn off**
 2. Remove and re-add the bot to the group (required for the change to take effect)
 
 ### Getting chat ID
 
 If `/chatid` doesn't work:
+
 - Verify token: `curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"`
 - Check bot is started: `tail -f logs/nanoclaw.log`
 
 ## After Setup
 
 If running `npm run dev` while the service is active:
+
 ```bash
 # macOS:
 launchctl unload ~/Library/LaunchAgents/com.nanoclaw.plist

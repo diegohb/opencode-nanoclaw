@@ -37,10 +37,15 @@ git remote add whatsapp https://github.com/qwibitai/nanoclaw-whatsapp.git
 
 ```bash
 git fetch whatsapp skill/reactions
-git merge whatsapp/skill/reactions
+git merge whatsapp/skill/reactions || {
+  git checkout --theirs package-lock.json
+  git add package-lock.json
+  git merge --continue
+}
 ```
 
 This adds:
+
 - `scripts/migrate-reactions.ts` (database migration for `reactions` table with composite PK and indexes)
 - `src/status-tracker.ts` (forward-only emoji state machine for message lifecycle signaling, with persistence and retry)
 - `src/status-tracker.test.ts` (unit tests for StatusTracker)
@@ -71,11 +76,13 @@ npm run build
 ```
 
 Linux:
+
 ```bash
 systemctl --user restart nanoclaw
 ```
 
 macOS:
+
 ```bash
 launchctl kickstart -k gui/$(id -u)/com.nanoclaw
 ```

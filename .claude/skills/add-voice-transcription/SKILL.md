@@ -41,10 +41,15 @@ git remote add whatsapp https://github.com/qwibitai/nanoclaw-whatsapp.git
 
 ```bash
 git fetch whatsapp skill/voice-transcription
-git merge whatsapp/skill/voice-transcription
+git merge whatsapp/skill/voice-transcription || {
+  git checkout --theirs package-lock.json
+  git add package-lock.json
+  git merge --continue
+}
 ```
 
 This merges in:
+
 - `src/transcription.ts` (voice transcription module using OpenAI Whisper)
 - Voice handling in `src/channels/whatsapp.ts` (isVoiceMessage check, transcribeAudioMessage call)
 - Transcription tests in `src/channels/whatsapp.test.ts`
@@ -119,6 +124,7 @@ tail -f logs/nanoclaw.log | grep -i voice
 ```
 
 Look for:
+
 - `Transcribed voice message` — successful transcription with character count
 - `OPENAI_API_KEY not set` — key missing from `.env`
 - `OpenAI transcription failed` — API error (check key validity, billing)
@@ -135,6 +141,7 @@ Look for:
 ### Voice notes show "[Voice Message - transcription failed]"
 
 Check logs for the specific error. Common causes:
+
 - Network timeout — transient, will work on next message
 - Invalid API key — regenerate at https://platform.openai.com/api-keys
 - Rate limiting — wait and retry

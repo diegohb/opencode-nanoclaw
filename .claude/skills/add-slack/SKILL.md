@@ -35,10 +35,15 @@ git remote add slack https://github.com/qwibitai/nanoclaw-slack.git
 
 ```bash
 git fetch slack main
-git merge slack/main
+git merge slack/main || {
+  git checkout --theirs package-lock.json
+  git add package-lock.json
+  git merge --continue
+}
 ```
 
 This merges in:
+
 - `src/channels/slack.ts` (SlackChannel class with self-registration via `registerChannel`)
 - `src/channels/slack.test.ts` (46 unit tests)
 - `import './slack.js'` appended to the channel barrel file `src/channels/index.ts`
@@ -64,6 +69,7 @@ All tests must pass (including the new Slack tests) and build must be clean befo
 If the user doesn't have a Slack app, share [SLACK_SETUP.md](SLACK_SETUP.md) which has step-by-step instructions with screenshots guidance, troubleshooting, and a token reference table.
 
 Quick summary of what's needed:
+
 1. Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps)
 2. Enable Socket Mode and generate an App-Level Token (`xapp-...`)
 3. Subscribe to bot events: `message.channels`, `message.groups`, `message.im`
@@ -119,9 +125,9 @@ Use the IPC register flow or register directly. The channel ID, name, and folder
 For a main channel (responds to all messages):
 
 ```typescript
-registerGroup("slack:<channel-id>", {
-  name: "<channel-name>",
-  folder: "slack_main",
+registerGroup('slack:<channel-id>', {
+  name: '<channel-name>',
+  folder: 'slack_main',
   trigger: `@${ASSISTANT_NAME}`,
   added_at: new Date().toISOString(),
   requiresTrigger: false,
@@ -132,9 +138,9 @@ registerGroup("slack:<channel-id>", {
 For additional channels (trigger-only):
 
 ```typescript
-registerGroup("slack:<channel-id>", {
-  name: "<channel-name>",
-  folder: "slack_<channel-name>",
+registerGroup('slack:<channel-id>', {
+  name: '<channel-name>',
+  folder: 'slack_<channel-name>',
   trigger: `@${ASSISTANT_NAME}`,
   added_at: new Date().toISOString(),
   requiresTrigger: true,
@@ -148,6 +154,7 @@ registerGroup("slack:<channel-id>", {
 Tell the user:
 
 > Send a message in your registered Slack channel:
+>
 > - For main channel: Any message works
 > - For non-main: `@<assistant-name> hello` (using the configured trigger word)
 >
@@ -178,12 +185,14 @@ tail -f logs/nanoclaw.log
 ### Bot not seeing messages in channels
 
 By default, bots only see messages in channels they've been explicitly added to. Make sure to:
+
 1. Add the bot to each channel you want it to monitor
 2. Check the bot has `channels:history` and/or `groups:history` scopes
 
 ### "missing_scope" errors
 
 If the bot logs `missing_scope` errors:
+
 1. Go to **OAuth & Permissions** in your Slack app settings
 2. Add the missing scope listed in the error message
 3. **Reinstall the app** to your workspace — scope changes require reinstallation
@@ -194,6 +203,7 @@ If the bot logs `missing_scope` errors:
 ### Getting channel ID
 
 If the channel ID is hard to find:
+
 - In Slack desktop: right-click channel → **Copy link** → extract the `C...` ID from the URL
 - In Slack web: the URL shows `https://app.slack.com/client/TXXXXXXX/C0123456789`
 - Via API: `curl -s -H "Authorization: Bearer $SLACK_BOT_TOKEN" "https://slack.com/api/conversations.list" | jq '.channels[] | {id, name}'`
@@ -201,6 +211,7 @@ If the channel ID is hard to find:
 ## After Setup
 
 The Slack channel supports:
+
 - **Public channels** — Bot must be added to the channel
 - **Private channels** — Bot must be invited to the channel
 - **Direct messages** — Users can DM the bot directly
