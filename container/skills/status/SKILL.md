@@ -10,11 +10,10 @@ Generate a quick read-only status report of the current agent environment.
 **Main-channel check:** Only the main channel has `/workspace/project` mounted. Run:
 
 ```bash
-test -d /workspace/project && echo MAIN || echo NOT_MAIN
+test -d /workspace/project && echo "MAIN" || echo "NOT_MAIN"
 ```
 
 If `NOT_MAIN`, respond with:
-
 > This command is available in your main chat only. Send `/status` there to check system status.
 
 Then stop — do not generate the report.
@@ -26,21 +25,21 @@ Run the checks below and compile results into the report format.
 ### 1. Session context
 
 ```bash
-echo Timestamp: $(date)
-echo Working dir: $(pwd)
-echo Channel: main
+echo "Timestamp: $(date)"
+echo "Working dir: $(pwd)"
+echo "Channel: main"
 ```
 
 ### 2. Workspace and mount visibility
 
 ```bash
-echo === Workspace ===
+echo "=== Workspace ==="
 ls /workspace/ 2>/dev/null
-echo === Group folder ===
+echo "=== Group folder ==="
 ls /workspace/group/ 2>/dev/null | head -20
-echo === Extra mounts ===
-ls /workspace/extra/ 2>/dev/null || echo none
-echo === IPC ===
+echo "=== Extra mounts ==="
+ls /workspace/extra/ 2>/dev/null || echo "none"
+echo "=== IPC ==="
 ls /workspace/ipc/ 2>/dev/null
 ```
 
@@ -51,12 +50,12 @@ Confirm which tool families are available to you:
 - **Core:** Bash, Read, Write, Edit, Glob, Grep
 - **Web:** WebSearch, WebFetch
 - **Orchestration:** Task, TaskOutput, TaskStop, TeamCreate, TeamDelete, SendMessage
-- **MCP:** mcp**nanoclaw**\* (send_message, schedule_task, list_tasks, pause_task, resume_task, cancel_task, update_task, register_group)
+- **MCP:** mcp__nanoclaw__* (send_message, schedule_task, list_tasks, pause_task, resume_task, cancel_task, update_task, register_group)
 
 ### 4. Container utilities
 
 ```bash
-which agent-browser 2>/dev/null && echo agent-browser: available || echo agent-browser: not installed
+which agent-browser 2>/dev/null && echo "agent-browser: available" || echo "agent-browser: not installed"
 node --version 2>/dev/null
 claude --version 2>/dev/null
 ```
@@ -69,7 +68,7 @@ Use the MCP tool to list tasks:
 Call mcp__nanoclaw__list_tasks to get scheduled tasks.
 ```
 
-If no tasks exist, report No scheduled tasks.
+If no tasks exist, report "No scheduled tasks."
 
 ## Report format
 
@@ -86,10 +85,10 @@ Present as a clean, readable message:
 *Workspace:*
 • Group folder: ✓ (N files)
 • Extra mounts: none / N directories
-• IPC: ✓
+• IPC: ✓ (messages, tasks, input)
 
 *Tools:*
-• Core: ✓ Web: ✓ Orchestration: ✓ MCP: ✓
+• Core: ✓  Web: ✓  Orchestration: ✓  MCP: ✓
 
 *Container:*
 • agent-browser: ✓ / not installed
