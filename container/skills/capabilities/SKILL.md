@@ -14,6 +14,7 @@ test -d /workspace/project && echo "MAIN" || echo "NOT_MAIN"
 ```
 
 If `NOT_MAIN`, respond with:
+
 > This command is available in your main chat only. Send `/capabilities` there to see what I can do.
 
 Then stop — do not generate the report.
@@ -27,7 +28,7 @@ Run these commands and compile the results into the report format below.
 List skill directories available to you:
 
 ```bash
-ls -1 /home/node/.claude/skills/ 2>/dev/null || echo "No skills found"
+ls -1 /home/node/.opencode/skills/ 2>/dev/null || echo "No skills found"
 ```
 
 Each directory is an installed skill. The directory name is the skill name (e.g., `agent-browser` → `/agent-browser`).
@@ -35,15 +36,17 @@ Each directory is an installed skill. The directory name is the skill name (e.g.
 ### 2. Available tools
 
 Read the allowed tools from your SDK configuration. You always have access to:
+
 - **Core:** Bash, Read, Write, Edit, Glob, Grep
 - **Web:** WebSearch, WebFetch
 - **Orchestration:** Task, TaskOutput, TaskStop, TeamCreate, TeamDelete, SendMessage
 - **Other:** TodoWrite, ToolSearch, Skill, NotebookEdit
-- **MCP:** mcp__nanoclaw__* (messaging, tasks, group management)
+- **MCP:** mcp**nanoclaw**\* (messaging, tasks, group management)
 
 ### 3. MCP server tools
 
 The NanoClaw MCP server exposes these tools (via `mcp__nanoclaw__*` prefix):
+
 - `send_message` — send a message to the user/group
 - `schedule_task` — schedule a recurring or one-time task
 - `list_tasks` — list scheduled tasks
@@ -64,7 +67,7 @@ which agent-browser 2>/dev/null && echo "agent-browser: available" || echo "agen
 ### 5. Group info
 
 ```bash
-ls /workspace/group/CLAUDE.md 2>/dev/null && echo "Group memory: yes" || echo "Group memory: no"
+ls /workspace/group/AGENTS.md 2>/dev/null && echo "Group memory: yes" || echo "Group memory: no"
 ls /workspace/extra/ 2>/dev/null && echo "Extra mounts: $(ls /workspace/extra/ 2>/dev/null | wc -l | tr -d ' ')" || echo "Extra mounts: none"
 ```
 

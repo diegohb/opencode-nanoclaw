@@ -209,6 +209,23 @@ git checkout -b feature/ms-teams upstream/main
 - Update documentation after syncs
 - Validate MS Teams worktree after core changes
 
+### Post-Sync Porting Notes
+
+**March 21, 2026 Sync:**
+
+- Ported `src/remote-control.ts` from Claude CLI to OpenCode CLI:
+  - Changed from `claude remote-control` to `opencode serve --hostname 0.0.0.0 --port <random>`
+  - Added random port generation (49152-65535 range)
+  - Added 3-word password generation for authentication
+  - Updated URL parsing to extract "Network access:" line from OpenCode output
+  - Credentials injected into returned URL via basic auth
+- Updated `container/skills/capabilities/SKILL.md`:
+  - Changed path from `/home/node/.claude/skills/` to `/home/node/.opencode/skills/`
+  - Changed group memory check from `CLAUDE.md` to `AGENTS.md`
+- Updated `container/skills/status/SKILL.md`:
+  - Changed `claude --version` to `opencode --version`
+  - Updated report format from "Claude Code: vX.X.X" to "OpenCode: vX.X.X"
+
 ### Risk Assessment
 
 - **High Risk:** Merging skill directory changes
