@@ -47,7 +47,6 @@ git merge discord/main || {
 ```
 
 This merges in:
-
 - `src/channels/discord.ts` (DiscordChannel class with self-registration via `registerChannel`)
 - `src/channels/discord.test.ts` (unit tests with discord.js mock)
 - `import './discord.js'` appended to the channel barrel file `src/channels/index.ts`
@@ -131,31 +130,18 @@ Wait for the user to provide the channel ID (format: `dc:1234567890123456`).
 
 ### Register the channel
 
-Use the IPC register flow or register directly. The channel ID, name, and folder name are needed.
+The channel ID, name, and folder name are needed. Use `npx tsx setup/index.ts --step register` with the appropriate flags.
 
 For a main channel (responds to all messages):
 
-```typescript
-registerGroup('dc:<channel-id>', {
-  name: '<server-name> #<channel-name>',
-  folder: 'discord_main',
-  trigger: `@${ASSISTANT_NAME}`,
-  added_at: new Date().toISOString(),
-  requiresTrigger: false,
-  isMain: true,
-});
+```bash
+npx tsx setup/index.ts --step register -- --jid "dc:<channel-id>" --name "<server-name> #<channel-name>" --folder "discord_main" --trigger "@${ASSISTANT_NAME}" --channel discord --no-trigger-required --is-main
 ```
 
 For additional channels (trigger-only):
 
-```typescript
-registerGroup('dc:<channel-id>', {
-  name: '<server-name> #<channel-name>',
-  folder: 'discord_<channel-name>',
-  trigger: `@${ASSISTANT_NAME}`,
-  added_at: new Date().toISOString(),
-  requiresTrigger: true,
-});
+```bash
+npx tsx setup/index.ts --step register -- --jid "dc:<channel-id>" --name "<server-name> #<channel-name>" --folder "discord_<channel-name>" --trigger "@${ASSISTANT_NAME}" --channel discord
 ```
 
 ## Phase 5: Verify
@@ -165,7 +151,6 @@ registerGroup('dc:<channel-id>', {
 Tell the user:
 
 > Send a message in your registered Discord channel:
->
 > - For main channel: Any message works
 > - For non-main: @mention the bot in Discord
 >
@@ -190,14 +175,12 @@ tail -f logs/nanoclaw.log
 ### Bot only responds to @mentions
 
 This is the default behavior for non-main channels (`requiresTrigger: true`). To change:
-
 - Update the registered group's `requiresTrigger` to `false`
 - Or register the channel as the main channel
 
 ### Message Content Intent not enabled
 
 If the bot connects but can't read messages, ensure:
-
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
 2. Select your application > **Bot** tab
 3. Under **Privileged Gateway Intents**, enable **Message Content Intent**
@@ -206,14 +189,12 @@ If the bot connects but can't read messages, ensure:
 ### Getting Channel ID
 
 If you can't copy the channel ID:
-
 - Ensure **Developer Mode** is enabled: User Settings > Advanced > Developer Mode
 - Right-click the channel name in the server sidebar > Copy Channel ID
 
 ## After Setup
 
 The Discord bot supports:
-
 - Text messages in registered channels
 - Attachment descriptions (images, videos, files shown as placeholders)
 - Reply context (shows who the user is replying to)
