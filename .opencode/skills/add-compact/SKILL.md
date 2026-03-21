@@ -5,7 +5,7 @@ description: Add /compact command for manual context compaction. Solves context 
 
 # Add /compact Command
 
-Adds a `/compact` session command that compacts conversation history to fight context rot in long-running sessions. Uses the Claude Agent SDK's built-in `/compact` slash command — no synthetic system prompts.
+Adds a `/compact` session command that compacts conversation history to fight context rot in long-running sessions. Uses the OpenCode SDK's built-in `/compact` slash command — no synthetic system prompts.
 
 **Session contract:** `/compact` keeps the same logical session alive. The SDK returns a new session ID after compaction (via the `init` system message), which the agent-runner forwards to the orchestrator as `newSessionId`. No destructive reset occurs — the agent retains summarized context.
 
@@ -31,6 +31,7 @@ git merge upstream/skill/compact
 > **Note:** `upstream` is the remote pointing to `qwibitai/nanoclaw`. If using a different remote name, substitute accordingly.
 
 This adds:
+
 - `src/session-commands.ts` (extract and authorize session commands)
 - `src/session-commands.test.ts` (unit tests for command parsing and auth)
 - Session command interception in `src/index.ts` (both `processGroupMessages` and `startMessageLoop`)
@@ -103,7 +104,7 @@ launchctl kickstart -k gui/$(id -u)/com.nanoclaw  # macOS
 ```bash
 git clone <your-fork> /tmp/nanoclaw-test
 cd /tmp/nanoclaw-test
-claude  # then run /add-compact
+opencode  # then run /add-compact
 npm run build
 npm test
 ./container/build.sh
