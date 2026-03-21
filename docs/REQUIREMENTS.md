@@ -32,9 +32,9 @@ No configuration sprawl. If you want different behavior, modify the code. The co
 
 ### AI-Native Development
 
-I don't need an installation wizard - Claude Code guides the setup. I don't need a monitoring dashboard - I ask Claude Code what's happening. I don't need elaborate logging UIs - I ask Claude to read the logs. I don't need debugging tools - I describe the problem and Claude fixes it.
+I don't need an installation wizard - OpenCode guides setup. I don't need a monitoring dashboard - I ask OpenCode what's happening. I don't need elaborate logging UIs - I ask OpenCode to read logs. I don't need debugging tools - I describe problem and OpenCode fixes it.
 
-The codebase assumes you have an AI collaborator. It doesn't need to be excessively self-documenting or self-debugging because Claude is always there.
+The codebase assumes you have an AI collaborator. It doesn't need to be excessively self-documenting or self-debugging because OpenCode is always there.
 
 ### Skills Over Features
 
@@ -71,7 +71,7 @@ The project uses Docker by default (cross-platform). For macOS users who prefer 
 
 ## Vision
 
-A personal Claude assistant accessible via WhatsApp, with minimal custom code.
+A personal AI assistant accessible via WhatsApp, with minimal custom code.
 
 **Core components:**
 
@@ -79,7 +79,7 @@ A personal Claude assistant accessible via WhatsApp, with minimal custom code.
 - **Containers** for isolated agent execution (Linux VMs)
 - **WhatsApp** as the primary I/O channel
 - **Persistent memory** per conversation and globally
-- **Scheduled tasks** that run Claude and can message back
+- **Scheduled tasks** that run OpenCode and can message back
 - **Web access** for search and browsing
 - **Browser automation** via agent-browser
 
@@ -122,7 +122,7 @@ A personal Claude assistant accessible via WhatsApp, with minimal custom code.
 
 ### Scheduled Tasks
 
-- Users can ask Claude to schedule recurring or one-time tasks from any group
+- Users can ask OpenCode to schedule recurring or one-time tasks from any group
 - Tasks run as full agents in the context of the group that created them
 - Tasks have access to all tools including Bash (safe in container)
 - Tasks can optionally send messages to their group via `send_message` tool, or complete silently
@@ -140,8 +140,8 @@ A personal Claude assistant accessible via WhatsApp, with minimal custom code.
 
 ### Main Channel Privileges
 
-- Main channel is the admin/control group (typically self-chat)
-- Can write to global memory (`groups/CLAUDE.md`)
+- Main channel is an admin/control group (typically self-chat)
+- Can write to global memory (`groups/AGENTS.md`)
 - Can schedule tasks for any group
 - Can view and manage tasks from all groups
 - Can configure additional directory mounts for any group
@@ -168,7 +168,7 @@ A personal Claude assistant accessible via WhatsApp, with minimal custom code.
 ### Web Access
 
 - Built-in WebSearch and WebFetch tools
-- Standard Claude Agent SDK capabilities
+- Standard OpenCode SDK capabilities
 
 ### Browser Automation
 
@@ -184,8 +184,8 @@ A personal Claude assistant accessible via WhatsApp, with minimal custom code.
 ### Philosophy
 
 - Minimal configuration files
-- Setup and customization done via Claude Code
-- Users clone the repo and run Claude Code to configure
+- Setup and customization done via OpenCode
+- Users clone the repo and run OpenCode to configure
 - Each user gets a custom setup matching their exact needs
 
 ### Skills
@@ -207,7 +207,7 @@ These are the creator's settings, stored here for reference:
 
 - **Trigger**: `@Andy` (case insensitive)
 - **Response prefix**: `Andy:`
-- **Persona**: Default Claude (no custom personality)
+- **Persona**: Default AI (no custom personality)
 - **Main channel**: Self-chat (messaging yourself in WhatsApp)
 
 ---

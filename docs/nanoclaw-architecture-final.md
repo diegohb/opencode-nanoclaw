@@ -2,15 +2,15 @@
 
 ## Core Principle
 
-Skills are self-contained, auditable packages that apply programmatically via standard git merge mechanics. Claude Code orchestrates the process — running git commands, reading skill manifests, and stepping in only when git can't resolve a conflict on its own. The system uses existing git features (`merge-file`, `rerere`, `apply`) rather than custom merge infrastructure.
+Skills are self-contained, auditable packages that apply programmatically via standard git merge mechanics. OpenCode orchestrates the process — running git commands, reading skill manifests, and stepping in only when git can't resolve a conflict on its own. The system uses existing git features (`merge-file`, `rerere`, `apply`) rather than custom merge infrastructure.
 
 ### The Three-Level Resolution Model
 
 Every operation in the system follows this escalation:
 
 1. **Git** — deterministic, programmatic. `git merge-file` merges, `git rerere` replays cached resolutions, structured operations apply without merging. No AI involved. This handles the vast majority of cases.
-2. **Claude Code** — reads `SKILL.md`, `.intent.md`, migration guides, and `state.yaml` to understand context. Resolves conflicts that git can't handle programmatically. Caches the resolution via `git rerere` so it never needs to resolve the same conflict again.
-3. **User** — Claude Code asks the user when it lacks context or intent. This happens when two features genuinely conflict at an application level (not just a text-level merge conflict) and a human decision is needed about desired behavior.
+2. **OpenCode** — reads `SKILL.md`, `.intent.md`, migration guides, and `state.yaml` to understand context. Resolves conflicts that git can't handle programmatically. Caches the resolution via `git rerere` so it never needs to resolve the same conflict again.
+3. **User** — OpenCode asks the user when it lacks context or intent. This happens when two features genuinely conflict at an application level (not just a text-level merge conflict) and a human decision is needed about desired behavior.
 
 The goal is that Level 1 handles everything on a mature, well-tested installation. Level 2 handles first-time conflicts and edge cases. Level 3 is rare and only for genuine ambiguity.
 
@@ -56,8 +56,8 @@ Files like `package.json`, `docker-compose.yml`, `.env.example`, and generated c
 # In manifest.yaml
 structured:
   npm_dependencies:
-    whatsapp-web.js: "^2.1.0"
-    qrcode-terminal: "^0.12.0"
+    whatsapp-web.js: '^2.1.0'
+    qrcode-terminal: '^0.12.0'
   env_additions:
     - WHATSAPP_TOKEN
     - WHATSAPP_VERIFY_TOKEN
@@ -65,7 +65,7 @@ structured:
   docker_compose_services:
     whatsapp-redis:
       image: redis:alpine
-      ports: ["6380:6379"]
+      ports: ['6380:6379']
 ```
 
 ### Structured Operation Conflicts
@@ -80,7 +80,7 @@ Structured operations eliminate text merge conflicts but can still conflict at a
 The resolution policy:
 
 1. **Automatic where possible**: widen semver ranges to find a compatible version, detect and flag port/name collisions
-2. **Level 2 (Claude Code)**: if automatic resolution fails, Claude proposes options based on skill intents
+2. **Level 2 (OpenCode)**: if automatic resolution fails, OpenCode proposes options based on skill intents
 3. **Level 3 (User)**: if it's a genuine product choice (which Redis instance should get port 6379?), ask the user
 
 Structured operation conflicts are included in the CI overlap graph alongside code file overlaps, so the maintainer test matrix catches these before users encounter them.
@@ -133,22 +133,26 @@ Each modified code file has a corresponding `.intent.md` with structured heading
 # Intent: server.ts modifications
 
 ## What this skill adds
+
 Adds WhatsApp webhook route and message handler to the Express server.
 
 ## Key sections
+
 - Route registration at `/webhook/whatsapp` (POST and GET for verification)
 - Message handler middleware between auth and response pipeline
 
 ## Invariants
+
 - Must not interfere with other channel webhook routes
 - Auth middleware must run before the WhatsApp handler
 - Error handling must propagate to the global error handler
 
 ## Must-keep sections
+
 - The webhook verification flow (GET route) is required by WhatsApp Cloud API
 ```
 
-Structured headings (What, Key sections, Invariants, Must-keep) give Claude Code specific guidance during conflict resolution instead of requiring it to infer from unstructured text.
+Structured headings (What, Key sections, Invariants, Must-keep) give OpenCode specific guidance during conflict resolution instead of requiring it to infer from unstructured text.
 
 ### Manifest Format
 
@@ -156,8 +160,8 @@ Structured headings (What, Key sections, Invariants, Must-keep) give Claude Code
 # --- Required fields ---
 skill: whatsapp
 version: 1.2.0
-description: "WhatsApp Business API integration via Cloud API"
-core_version: 0.1.0               # The core version this skill was authored against
+description: 'WhatsApp Business API integration via Cloud API'
+core_version: 0.1.0 # The core version this skill was authored against
 
 # Files this skill adds
 adds:
@@ -175,19 +179,19 @@ file_ops: []
 # Structured operations (deterministic, no merge — implicit handling)
 structured:
   npm_dependencies:
-    whatsapp-web.js: "^2.1.0"
-    qrcode-terminal: "^0.12.0"
+    whatsapp-web.js: '^2.1.0'
+    qrcode-terminal: '^0.12.0'
   env_additions:
     - WHATSAPP_TOKEN
     - WHATSAPP_VERIFY_TOKEN
     - WHATSAPP_PHONE_ID
 
 # Skill relationships
-conflicts: []              # Skills that cannot coexist without agent resolution
-depends: []                # Skills that must be applied first
+conflicts: [] # Skills that cannot coexist without agent resolution
+depends: [] # Skills that must be applied first
 
 # Test command — runs after apply to validate the skill works
-test: "npx vitest run src/channels/whatsapp.test.ts"
+test: 'npx vitest run src/channels/whatsapp.test.ts'
 
 # --- Future fields (not yet implemented in v0.1) ---
 # author: nanoclaw-team
@@ -232,9 +236,9 @@ Each layer is a separate skill with its own `SKILL.md`, manifest (with `depends:
 A user can apply a skill with their own modifications in a single step:
 
 1. Apply the skill normally (programmatic merge)
-2. Claude Code asks if the user wants to make any modifications
+2. OpenCode asks if the user wants to make any modifications
 3. User describes what they want different
-4. Claude Code makes the modifications on top of the freshly applied skill
+4. OpenCode makes the modifications on top of the freshly applied skill
 5. The modifications are recorded as a custom patch tied to this skill
 
 Recorded in `state.yaml`:
@@ -244,7 +248,7 @@ applied_skills:
   - skill: telegram
     version: 1.0.0
     custom_patch: .nanoclaw/custom/telegram-group-only.patch
-    custom_patch_description: "Restrict bot responses to group chats only"
+    custom_patch_description: 'Restrict bot responses to group chats only'
 ```
 
 On replay, the skill applies programmatically, then the custom patch applies on top.
@@ -312,7 +316,7 @@ Before executing file operations:
 
 ## 6. The Apply Flow
 
-When a user runs the skill's slash command in Claude Code:
+When a user runs the skill's slash command in OpenCode:
 
 ### Step 1: Pre-flight Checks
 
@@ -350,8 +354,8 @@ git merge-file src/server.ts .nanoclaw/base/src/server.ts skills/add-whatsapp/mo
 
 1. **Check shared resolution cache** (`.nanoclaw/resolutions/`) — load into local `git rerere` if a verified resolution exists for this skill combination. **Only apply if input hashes match exactly** (base hash + current hash + skill modified hash).
 2. **`git rerere`** — checks local cache. If found, applied automatically. Done.
-3. **Claude Code** — reads conflict markers + `SKILL.md` + `.intent.md` (Invariants, Must-keep sections) of current and previously applied skills. Resolves. `git rerere` caches the resolution.
-4. **User** — if Claude Code cannot determine intent, it asks the user for the desired behavior.
+3. **OpenCode** — reads conflict markers + `SKILL.md` + `.intent.md` (Invariants, Must-keep sections) of current and previously applied skills. Resolves. `git rerere` caches the resolution.
+4. **User** — if OpenCode cannot determine intent, it asks the user for the desired behavior.
 
 ### Step 7: Apply Structured Operations
 
@@ -368,7 +372,7 @@ Collect all structured declarations (from this skill and any previously applied 
 1. Run any `post_apply` commands (non-structured operations only)
 2. Update `.nanoclaw/state.yaml` — skill record, file hashes (base, skill, merged per file), structured outcomes
 3. **Run skill tests** — mandatory, even if all merges were clean
-4. If tests fail on a clean merge → escalate to Level 2 (Claude Code diagnoses the semantic conflict)
+4. If tests fail on a clean merge → escalate to Level 2 (OpenCode diagnoses the semantic conflict)
 
 ### Step 9: Clean Up
 
@@ -382,7 +386,7 @@ If tests fail and Level 2 can't resolve, restore from `.nanoclaw/backup/` and re
 
 ### The Problem
 
-`git rerere` is local by default. But NanoClaw has thousands of users applying the same skill combinations. Every user hitting the same conflict and waiting for Claude Code to resolve it is wasteful.
+`git rerere` is local by default. But NanoClaw has thousands of users applying the same skill combinations. Every user hitting the same conflict and waiting for OpenCode to resolve it is wasteful.
 
 ### The Solution
 
@@ -416,10 +420,10 @@ tested: true
 test_passed: true
 resolution_source: maintainer
 input_hashes:
-  base: "aaa..."
-  current_after_whatsapp: "bbb..."
-  telegram_modified: "ccc..."
-output_hash: "ddd..."
+  base: 'aaa...'
+  current_after_whatsapp: 'bbb...'
+  telegram_modified: 'ccc...'
+output_hash: 'ddd...'
 ```
 
 If any input hash doesn't match, the cached resolution is skipped and the system proceeds to Level 2.
@@ -477,7 +481,7 @@ git reset HEAD
 
 #### Implication: Git Repository Required
 
-The adapter requires `git hash-object`, `git update-index`, and `.git/rr-cache/`. This means the project directory must be a git repository for rerere caching to work. Users who download a zip (no `.git/`) lose resolution caching but not functionality — conflicts escalate directly to Level 2 (Claude Code resolves). The system should detect this case and skip rerere operations gracefully.
+The adapter requires `git hash-object`, `git update-index`, and `.git/rr-cache/`. This means the project directory must be a git repository for rerere caching to work. Users who download a zip (no `.git/`) lose resolution caching but not functionality — conflicts escalate directly to Level 2 (OpenCode resolves). The system should detect this case and skip rerere operations gracefully.
 
 ### Maintainer Workflow
 
@@ -501,7 +505,7 @@ The bar: **a user with any common combination of official skills should never en
 `.nanoclaw/state.yaml` records everything about the installation:
 
 ```yaml
-skills_system_version: "0.1.0"     # Schema version — tooling checks this before any operation
+skills_system_version: '0.1.0' # Schema version — tooling checks this before any operation
 core_version: 0.1.0
 
 applied_skills:
@@ -509,38 +513,38 @@ applied_skills:
     version: 1.0.0
     applied_at: 2026-02-16T22:47:02.139Z
     file_hashes:
-      src/channels/telegram.ts: "f627b9cf..."
-      src/channels/telegram.test.ts: "400116769..."
-      src/config.ts: "9ae28d1f..."
-      src/index.ts: "46dbe495..."
-      src/routing.test.ts: "5e1aede9..."
+      src/channels/telegram.ts: 'f627b9cf...'
+      src/channels/telegram.test.ts: '400116769...'
+      src/config.ts: '9ae28d1f...'
+      src/index.ts: '46dbe495...'
+      src/routing.test.ts: '5e1aede9...'
     structured_outcomes:
       npm_dependencies:
-        grammy: "^1.39.3"
+        grammy: '^1.39.3'
       env_additions:
         - TELEGRAM_BOT_TOKEN
         - TELEGRAM_ONLY
-      test: "npx vitest run src/channels/telegram.test.ts"
+      test: 'npx vitest run src/channels/telegram.test.ts'
 
   - name: discord
     version: 1.0.0
     applied_at: 2026-02-17T17:29:37.821Z
     file_hashes:
-      src/channels/discord.ts: "5d669123..."
-      src/channels/discord.test.ts: "19e1c6b9..."
-      src/config.ts: "a0a32df4..."
-      src/index.ts: "d61e3a9d..."
-      src/routing.test.ts: "edbacb00..."
+      src/channels/discord.ts: '5d669123...'
+      src/channels/discord.test.ts: '19e1c6b9...'
+      src/config.ts: 'a0a32df4...'
+      src/index.ts: 'd61e3a9d...'
+      src/routing.test.ts: 'edbacb00...'
     structured_outcomes:
       npm_dependencies:
-        discord.js: "^14.18.0"
+        discord.js: '^14.18.0'
       env_additions:
         - DISCORD_BOT_TOKEN
         - DISCORD_ONLY
-      test: "npx vitest run src/channels/discord.test.ts"
+      test: 'npx vitest run src/channels/discord.test.ts'
 
 custom_modifications:
-  - description: "Added custom logging middleware"
+  - description: 'Added custom logging middleware'
     applied_at: 2026-02-15T12:00:00Z
     files_modified:
       - src/server.ts
@@ -548,6 +552,7 @@ custom_modifications:
 ```
 
 **v0.1 implementation notes:**
+
 - `file_hashes` stores a single SHA-256 hash per file (the final merged result). Three-part hashes (base/skill_modified/merged) are planned for a future version to improve drift diagnosis.
 - Applied skills use `name` as the key field (not `skill`), matching the TypeScript `AppliedSkill` interface.
 - `structured_outcomes` stores the raw manifest values plus the `test` command. Resolved npm versions (actual installed versions vs semver ranges) are not yet tracked.
@@ -579,8 +584,8 @@ The system never blocks or loses work. Option 1 generates a patch and records it
 No matter how much a user modifies their codebase outside the system, the three-level model can always bring them back:
 
 1. **Git**: diff current files against base, identify what changed
-2. **Claude Code**: read `state.yaml` to understand what skills were applied, compare against actual file state, identify discrepancies
-3. **User**: Claude Code asks what they intended, what to keep, what to discard
+2. **OpenCode**: read `state.yaml` to understand what skills were applied, compare against actual file state, identify discrepancies
+3. **User**: OpenCode asks what they intended, what to keep, what to discard
 
 There is no unrecoverable state.
 
@@ -605,15 +610,15 @@ An append-only file in the repo root. Each entry records a breaking change and t
 ```yaml
 - since: 0.6.0
   skill: apple-containers@1.0.0
-  description: "Preserves Apple Containers (default changed to Docker in 0.6)"
+  description: 'Preserves Apple Containers (default changed to Docker in 0.6)'
 
 - since: 0.7.0
   skill: add-whatsapp@2.0.0
-  description: "Preserves WhatsApp (moved from core to skill in 0.7)"
+  description: 'Preserves WhatsApp (moved from core to skill in 0.7)'
 
 - since: 0.8.0
   skill: legacy-auth@1.0.0
-  description: "Preserves legacy auth module (removed from core in 0.8)"
+  description: 'Preserves legacy auth module (removed from core in 0.8)'
 ```
 
 Migration skills are regular skills in the `skills/` directory. They have manifests, intent files, tests — everything. They're authored against the **new** core version: the modified file is the new core with the specific breaking change reverted, everything else (bug fixes, new features) identical to the new core.
@@ -754,7 +759,7 @@ git merge-file src/server.ts .nanoclaw/base/src/server.ts updates/0.5.0-to-0.6.0
 
 1. Shipped resolutions (hash-verified) → automatic
 2. `git rerere` local cache → automatic
-3. Claude Code with `migration.md` + skill intents → resolves
+3. OpenCode with `migration.md` + skill intents → resolves
 4. User → only for genuine ambiguity
 
 #### Step 7: Re-apply Custom Patches
@@ -888,7 +893,7 @@ Given `state.yaml`, reproduce the exact installation on a fresh machine with no 
 ### Replay Flow
 
 ```bash
-# Fully programmatic — no Claude Code needed
+# Fully programmatic — no OpenCode needed
 
 # 1. Install core at specified version
 nanoclaw-init --version 0.5.0
@@ -999,7 +1004,7 @@ project/
     channels/
       whatsapp.ts
       telegram.ts
-  skills/                           # Skill packages (Claude Code slash commands)
+  skills/                           # Skill packages (OpenCode slash commands)
     add-whatsapp/
       SKILL.md
       manifest.yaml
@@ -1043,7 +1048,7 @@ project/
 ## 17. Design Principles
 
 1. **Use git, don't reinvent it.** `git merge-file` for code merges, `git rerere` for caching resolutions, `git apply --3way` for custom patches.
-2. **Three-level resolution: git → Claude → user.** Programmatic first, AI second, human third.
+2. **Three-level resolution: git → OpenCode → user.** Programmatic first, AI second, human third.
 3. **Clean merges aren't enough.** Tests run after every operation. Semantic conflicts survive text merges.
 4. **All operations are safe.** Backup before, restore on failure. No half-applied state.
 5. **One shared base.** `.nanoclaw/base/` is the clean core before any skills or customizations. It's the stable common ancestor for all three-way merges. Only updated on core updates.

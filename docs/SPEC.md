@@ -1,6 +1,6 @@
 # NanoClaw Specification
 
-A personal Claude assistant with multi-channel support, persistent memory per conversation, scheduled tasks, and container-isolated agent execution.
+A personal AI assistant with multi-channel support, persistent memory per conversation, scheduled tasks, and container-isolated agent execution.
 
 ---
 
@@ -56,7 +56,7 @@ A personal Claude assistant with multi-channel support, persistent memory per co
 │  │  Volume mounts:                                                │    │
 │  │    • groups/{name}/ → /workspace/group                         │    │
 │  │    • groups/global/ → /workspace/global/ (non-main only)       │    │
-│  │    • data/sessions/{group}/.claude/ → /home/node/.claude/      │    │
+│  │    • data/sessions/{group}/.opencode/ → /home/node/.opencode/      │    │
 │  │    • Additional dirs → /workspace/extra/*                      │    │
 │  │                                                                │    │
 │  │  Tools (all groups):                                           │    │
@@ -73,20 +73,20 @@ A personal Claude assistant with multi-channel support, persistent memory per co
 
 ### Technology Stack
 
-| Component           | Technology                              | Purpose                                    |
-| ------------------- | --------------------------------------- | ------------------------------------------ |
-| WhatsApp Connection | Node.js (@whiskeysockets/baileys)       | Connect to WhatsApp, send/receive messages |
-| Message Storage     | SQLite (bun:sqlite)                     | Store messages for polling                 |
-| Container Runtime   | Containers (Linux VMs)                  | Isolated environments for agent execution  |
-| Agent               | @anthropic-ai/claude-agent-sdk (0.2.29) | Run Claude with tools and MCP servers      |
-| Browser Automation  | agent-browser + Chromium                | Web interaction and screenshots            |
-| Runtime             | Node.js 20+                             | Host process for routing and scheduling    |
+| Component           | Technology                        | Purpose                                    |
+| ------------------- | --------------------------------- | ------------------------------------------ |
+| WhatsApp Connection | Node.js (@whiskeysockets/baileys) | Connect to WhatsApp, send/receive messages |
+| Message Storage     | SQLite (bun:sqlite)               | Store messages for polling                 |
+| Container Runtime   | Containers (Linux VMs)            | Isolated environments for agent execution  |
+| Agent               | @opencode/opencode-sdk            | Run OpenCode server with tools and MCP     |
+| Browser Automation  | agent-browser + Chromium          | Web interaction and screenshots            |
+| Runtime             | Node.js 20+                       | Host process for routing and scheduling    |
 
 ---
 
 ## Architecture: Channel System
 
-The core ships with no channels built in — each channel (WhatsApp, Telegram, Slack, Discord, Gmail) is installed as a [Claude Code skill](https://code.claude.com/docs/en/skills) that adds the channel code to your fork. Channels self-register at startup; installed channels with missing credentials emit a WARN log and are skipped.
+The core ships with no channels built in — each channel (WhatsApp, Telegram, Slack, Discord, Gmail) is installed as a [OpenCode skill](https://opencode.ai/docs/skills) that adds the channel code to your fork. Channels self-register at startup; installed channels with missing credentials emit a WARN log and are skipped.
 
 ### System Diagram
 
@@ -242,7 +242,7 @@ See existing skills (`/add-whatsapp`, `/add-telegram`, `/add-slack`, `/add-disco
 
 ```
 nanoclaw/
-├── AGENTS.md                      # Project context for Claude Code
+├── AGENTS.md                      # Project context for OpenCode
 ├── docs/
 │   ├── SPEC.md                    # This specification document
 │   ├── REQUIREMENTS.md            # Architecture decisions
@@ -271,7 +271,7 @@ nanoclaw/
 │   └── container-runner.ts        # Spawns agents in containers
 │
 ├── container/
-│   ├── Dockerfile                 # Container image (runs as 'node' user, includes Claude Code CLI)
+│   ├── Dockerfile                 # Container image (runs as 'node' user, includes OpenCode CLI)
 │   ├── build.sh                   # Build script for container image
 │   ├── agent-runner/              # Code that runs inside the container
 │   │   ├── package.json
@@ -311,7 +311,7 @@ nanoclaw/
 │   └── messages.db                # SQLite database (messages, chats, scheduled_tasks, task_run_logs, registered_groups, sessions, router_state)
 │
 ├── data/                          # Application state (gitignored)
-│   ├── sessions/                  # Per-group session data (.claude/ dirs with JSONL transcripts)
+│   ├── sessions/                  # Per-group session data (.opencode/ dirs with JSONL transcripts)
 │   ├── env/env                    # Copy of .env for container mounting
 │   └── ipc/                       # Container IPC (messages/, tasks/)
 │
@@ -391,17 +391,17 @@ Additional mounts appear at `/workspace/extra/{containerPath}` inside the contai
 
 **Mount syntax note:** Read-write mounts use `-v host:container`, but readonly mounts require `--mount "type=bind,source=...,target=...,readonly"` (the `:ro` suffix may not work on all runtimes).
 
-### Claude Authentication
+### OpenCode Authentication
 
 Configure authentication in a `.env` file in the project root. Two options:
 
-**Option 1: Claude Subscription (OAuth token)**
+**Option 1: OpenCode Subscription (OAuth token)**
 
 ```bash
 CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
 ```
 
-The token can be extracted from `~/.claude/.credentials.json` if you're logged in to Claude Code.
+The token can be extracted from `~/.opencode/.credentials.json` if you're logged in to OpenCode.
 
 **Option 2: Pay-per-use API Key**
 
@@ -409,7 +409,7 @@ The token can be extracted from `~/.claude/.credentials.json` if you're logged i
 ANTHROPIC_API_KEY=sk-ant-api03-...
 ```
 
-Only the authentication variables (`CLAUDE_CODE_OAUTH_TOKEN` and `ANTHROPIC_API_KEY`) are extracted from `.env` and written to `data/env/env`, then mounted into the container at `/workspace/env-dir/env` and sourced by the entrypoint script. This ensures other environment variables in `.env` are not exposed to the agent. This workaround is needed because some container runtimes lose `-e` environment variables when using `-i` (interactive mode with piped stdin).
+Only the authentication variables (`OPENCODE_OAUTH_TOKEN` and `ANTHROPIC_API_KEY`) are extracted from `.env` and written to `data/env/env`, then mounted into the container at `/workspace/env-dir/env` and sourced by the entrypoint script. This ensures other environment variables in `.env` are not exposed to the agent. This workaround is needed because some container runtimes lose `-e` environment variables when using `-i` (interactive mode with piped stdin).
 
 ### Changing the Assistant Name
 
@@ -450,7 +450,7 @@ NanoClaw uses a hierarchical memory system based on AGENTS.md files.
 
 1. **Agent Context Loading**
    - Agent runs with `cwd` set to `groups/{group-name}/`
-   - Claude Agent SDK with `settingSources: ['project']` automatically loads:
+   - OpenCode SDK with `settingSources: ['project']` automatically loads:
      - `../AGENTS.md` (parent directory = global memory)
      - `./AGENTS.md` (current directory = group memory)
 
@@ -469,14 +469,14 @@ NanoClaw uses a hierarchical memory system based on AGENTS.md files.
 
 ## Session Management
 
-Sessions enable conversation continuity - Claude remembers what you talked about.
+Sessions enable conversation continuity - OpenCode remembers what you talked about.
 
 ### How Sessions Work
 
 1. Each group has a session ID stored in SQLite (`sessions` table, keyed by `group_folder`)
-2. Session ID is passed to Claude Agent SDK's `resume` option
-3. Claude continues the conversation with full context
-4. Session transcripts are stored as JSONL files in `data/sessions/{group}/.claude/`
+2. Session ID is passed to OpenCode SDK's `resume` option
+3. OpenCode continues to conversation with full context
+4. Session transcripts are stored as JSONL files in `data/sessions/{group}/.opencode/`
 
 ---
 
@@ -508,14 +508,14 @@ Sessions enable conversation continuity - Claude remembers what you talked about
    └── Build prompt with full conversation context
    │
    ▼
-7. Router invokes Claude Agent SDK:
+7. Router invokes OpenCode SDK:
    ├── cwd: groups/{group-name}/
    ├── prompt: conversation history + current message
    ├── resume: session_id (for continuity)
    └── mcpServers: nanoclaw (scheduler)
    │
    ▼
-8. Claude processes message:
+8. OpenCode processes message:
    ├── Reads AGENTS.md files for context
    └── Uses tools as needed (search, email, etc.)
    │
@@ -530,7 +530,7 @@ Sessions enable conversation continuity - Claude remembers what you talked about
 
 Messages must start with the trigger pattern (default: `@Andy`):
 
-- `@Andy what's the weather?` → ✅ Triggers Claude
+- `@Andy what's the weather?` → ✅ Triggers OpenCode
 - `@andy help me` → ✅ Triggers (case insensitive)
 - `Hey @Andy` → ❌ Ignored (trigger not at start)
 - `What's up?` → ❌ Ignored (no trigger)
@@ -553,9 +553,9 @@ This allows the agent to understand the conversation context even if it wasn't m
 
 ### Commands Available in Any Group
 
-| Command                | Example                     | Effect         |
-| ---------------------- | --------------------------- | -------------- |
-| `@Assistant [message]` | `@Andy what's the weather?` | Talk to Claude |
+| Command                | Example                     | Effect           |
+| ---------------------- | --------------------------- | ---------------- |
+| `@Assistant [message]` | `@Andy what's the weather?` | Talk to OpenCode |
 
 ### Commands Available in Main Channel Only
 
@@ -592,14 +592,14 @@ NanoClaw has a built-in scheduler that runs tasks as full agents in their group'
 ```
 User: @Andy remind me every Monday at 9am to review the weekly metrics
 
-Claude: [calls mcp__nanoclaw__schedule_task]
+OpenCode: [calls mcp__nanoclaw__schedule_task]
         {
           "prompt": "Send a reminder to review weekly metrics. Be encouraging!",
           "schedule_type": "cron",
           "schedule_value": "0 9 * * 1"
         }
 
-Claude: Done! I'll remind you every Monday at 9am.
+OpenCode: Done! I'll remind you every Monday at 9am.
 ```
 
 ### One-Time Tasks
@@ -607,9 +607,9 @@ Claude: Done! I'll remind you every Monday at 9am.
 ```
 User: @Andy at 5pm today, send me a summary of today's emails
 
-Claude: [calls mcp__nanoclaw__schedule_task]
+OpenCode: [calls mcp__nanoclaw__schedule_task]
         {
-          "prompt": "Search for today's emails, summarize the important ones, and send the summary to the group.",
+          "prompt": "Search for today's emails, summarize important ones, and send summary to the group.",
           "schedule_type": "once",
           "schedule_value": "2024-01-31T17:00:00Z"
         }
@@ -744,7 +744,7 @@ All agents run inside containers (lightweight Linux VMs), providing:
 
 ### Prompt Injection Risk
 
-WhatsApp messages could contain malicious instructions attempting to manipulate Claude's behavior.
+WhatsApp messages could contain malicious instructions attempting to manipulate OpenCode's behavior.
 
 **Mitigations:**
 
@@ -753,7 +753,7 @@ WhatsApp messages could contain malicious instructions attempting to manipulate 
 - Trigger word required (reduces accidental processing)
 - Agents can only access their group's mounted directories
 - Main can configure additional directories per group
-- Claude's built-in safety training
+- OpenCode's built-in safety training
 
 **Recommendations:**
 
@@ -764,10 +764,10 @@ WhatsApp messages could contain malicious instructions attempting to manipulate 
 
 ### Credential Storage
 
-| Credential       | Storage Location               | Notes                                               |
-| ---------------- | ------------------------------ | --------------------------------------------------- |
-| Claude CLI Auth  | data/sessions/{group}/.claude/ | Per-group isolation, mounted to /home/node/.claude/ |
-| WhatsApp Session | store/auth/                    | Auto-created, persists ~20 days                     |
+| Credential        | Storage Location                 | Notes                                                 |
+| ----------------- | -------------------------------- | ----------------------------------------------------- |
+| OpenCode CLI Auth | data/sessions/{group}/.opencode/ | Per-group isolation, mounted to /home/node/.opencode/ |
+| WhatsApp Session  | store/auth/                      | Auto-created, persists ~20 days                       |
 
 ### File Permissions
 
@@ -783,15 +783,15 @@ chmod 700 groups/
 
 ### Common Issues
 
-| Issue                                    | Cause                             | Solution                                                                                 |
-| ---------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------- | -------------- |
-| No response to messages                  | Service not running               | Check `launchctl list                                                                    | grep nanoclaw` |
-| "Claude Code process exited with code 1" | Container runtime failed to start | Check logs; NanoClaw auto-starts container runtime but may fail                          |
-| "Claude Code process exited with code 1" | Session mount path wrong          | Ensure mount is to `/home/node/.claude/` not `/root/.claude/`                            |
-| Session not continuing                   | Session ID not saved              | Check SQLite: `sqlite3 store/messages.db "SELECT * FROM sessions"`                       |
-| Session not continuing                   | Mount path mismatch               | Container user is `node` with HOME=/home/node; sessions must be at `/home/node/.claude/` |
-| "QR code expired"                        | WhatsApp session expired          | Delete store/auth/ and restart                                                           |
-| "No groups registered"                   | Haven't added groups              | Use `@Andy add group "Name"` in main                                                     |
+| Issue                                 | Cause                             | Solution                                                                                   |
+| ------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------ | -------------- |
+| No response to messages               | Service not running               | Check `launchctl list                                                                      | grep nanoclaw` |
+| "OpenCode process exited with code 1" | Container runtime failed to start | Check logs; NanoClaw auto-starts container runtime but may fail                            |
+| "OpenCode process exited with code 1" | Session mount path wrong          | Ensure mount is to `/home/node/.opencode/` not `/root/.opencode/`                          |
+| Session not continuing                | Session ID not saved              | Check SQLite: `sqlite3 store/messages.db "SELECT * FROM sessions"`                         |
+| Session not continuing                | Mount path mismatch               | Container user is `node` with HOME=/home/node; sessions must be at `/home/node/.opencode/` |
+| "QR code expired"                     | WhatsApp session expired          | Delete store/auth/ and restart                                                             |
+| "No groups registered"                | Haven't added groups              | Use `@Andy add group "Name"` in main                                                       |
 
 ### Log Location
 
