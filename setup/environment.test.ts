@@ -80,10 +80,19 @@ describe('credentials detection', () => {
     expect(hasCredentials).toBe(true);
   });
 
+  it('detects OPENROUTER_API_KEY in env content', () => {
+    const content =
+      'SOME_KEY=value\nOPENROUTER_API_KEY=sk-or-test123\nOTHER=foo';
+    const hasCredentials = /^OPENROUTER_API_KEY=/m.test(content);
+    expect(hasCredentials).toBe(true);
+  });
+
   it('returns false when no credentials', () => {
     const content = 'ASSISTANT_NAME="Andy"\nOTHER=foo';
-    const hasCredentials = /^ANTHROPIC_API_KEY=/m.test(content);
-    expect(hasCredentials).toBe(false);
+    const hasAnthropicKey = /^ANTHROPIC_API_KEY=/m.test(content);
+    const hasOpenRouterKey = /^OPENROUTER_API_KEY=/m.test(content);
+    expect(hasAnthropicKey).toBe(false);
+    expect(hasOpenRouterKey).toBe(false);
   });
 });
 

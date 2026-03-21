@@ -75,7 +75,7 @@ skills-engine/
 - [ ] Container rebuild: `./container/build.sh`
 - [ ] Test container functionality
 
-### For Skills (`.claude/skills/`)
+### For Skills (`.opencode/skills/`)
 
 - [ ] Test on fresh clone (PR template requirement)
 - [ ] No source code changes (skills contain instructions only)
@@ -163,7 +163,7 @@ grep -E 'Scheduling retry|retry|Max retries' logs/nanoclaw.log | tail -10
 
 ### After Skills Installation
 
-1. Skills appear in `ls /home/node/.claude/skills/`
+1. Skills appear in `ls /home/node/.opencode/skills/`
 2. Container skills mount at `/workspace/container/skills/`
 3. Skills execute without errors
 4. Test on fresh clone (for new skills)

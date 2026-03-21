@@ -65,6 +65,7 @@ bun test             # Unit tests — must pass
 ```
 
 After Task 2 additionally:
+
 ```bash
 ./container/teams-sidecar/build.sh   # Sidecar container build — must pass
 ```
@@ -328,10 +329,7 @@ export abstract class SidecarChannel implements Channel {
     });
 
     this.container.on('exit', (code) => {
-      logger.warn(
-        { channel: this.name, code },
-        'Sidecar container exited',
-      );
+      logger.warn({ channel: this.name, code }, 'Sidecar container exited');
       this.connected = false;
     });
 
@@ -416,7 +414,11 @@ export abstract class SidecarChannel implements Channel {
           res.on('end', () => {
             const resp = Buffer.concat(chunks).toString();
             if (res.statusCode && res.statusCode >= 400) {
-              reject(new Error(`Sidecar ${path} returned ${res.statusCode}: ${resp}`));
+              reject(
+                new Error(
+                  `Sidecar ${path} returned ${res.statusCode}: ${resp}`,
+                ),
+              );
             } else {
               resolve(resp);
             }
@@ -499,31 +501,31 @@ export function registerSidecarCallback(cb: SidecarInboundCallback): void {
 Inside `startCredentialProxy`, at the top of the `createServer` callback (line 48, after `const server = createServer((req, res) => {`), add:
 
 ```typescript
-      // --- Sidecar inbound route ---
-      if (req.url === '/channel/inbound' && req.method === 'POST') {
-        const chunks: Buffer[] = [];
-        req.on('data', (c) => chunks.push(c));
-        req.on('end', () => {
-          try {
-            const payload = JSON.parse(Buffer.concat(chunks).toString());
-            if (!sidecarCallback) {
-              res.writeHead(503);
-              res.end(JSON.stringify({ error: 'No sidecar callback registered' }));
-              return;
-            }
-            sidecarCallback(payload);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: true }));
-          } catch (err) {
-            logger.error({ err }, 'Failed to process sidecar inbound');
-            res.writeHead(400);
-            res.end(JSON.stringify({ error: 'Invalid JSON' }));
-          }
-        });
-        return; // Don't fall through to upstream proxy
+// --- Sidecar inbound route ---
+if (req.url === '/channel/inbound' && req.method === 'POST') {
+  const chunks: Buffer[] = [];
+  req.on('data', (c) => chunks.push(c));
+  req.on('end', () => {
+    try {
+      const payload = JSON.parse(Buffer.concat(chunks).toString());
+      if (!sidecarCallback) {
+        res.writeHead(503);
+        res.end(JSON.stringify({ error: 'No sidecar callback registered' }));
+        return;
       }
+      sidecarCallback(payload);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+    } catch (err) {
+      logger.error({ err }, 'Failed to process sidecar inbound');
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+  });
+  return; // Don't fall through to upstream proxy
+}
 
-      // --- Existing proxy logic below (unchanged) ---
+// --- Existing proxy logic below (unchanged) ---
 ```
 
 3. In `src/index.ts`, after the credential proxy starts but before channels connect, register the sidecar callback:
@@ -626,7 +628,8 @@ Persists `ConversationReference` objects so the sidecar can send proactive messa
 import fs from 'fs';
 import { ConversationReference } from 'botbuilder';
 
-const STORE_PATH = process.env.TEAMS_STORE_PATH || '/data/conversation-refs.json';
+const STORE_PATH =
+  process.env.TEAMS_STORE_PATH || '/data/conversation-refs.json';
 
 const refs = new Map<string, Partial<ConversationReference>>();
 
@@ -707,7 +710,8 @@ import { loadRefs, storeRef, getRef } from './store.js';
 const APP_ID = process.env.TEAMS_APP_ID || '';
 const APP_SECRET = process.env.TEAMS_APP_SECRET || '';
 const PORT = parseInt(process.env.TEAMS_SIDECAR_PORT || '3978', 10);
-const NANOCLAW_HOST = process.env.NANOCLAW_HOST || 'http://host.docker.internal:3001';
+const NANOCLAW_HOST =
+  process.env.NANOCLAW_HOST || 'http://host.docker.internal:3001';
 
 if (!APP_ID || !APP_SECRET) {
   console.error('FATAL: TEAMS_APP_ID and TEAMS_APP_SECRET are required');
@@ -749,10 +753,7 @@ class NanoClawTeamsHandler extends TeamsActivityHandler {
       let text = activity.text || '';
       if (activity.entities) {
         for (const entity of activity.entities) {
-          if (
-            entity.type === 'mention' &&
-            entity.mentioned?.id === APP_ID
-          ) {
+          if (entity.type === 'mention' && entity.mentioned?.id === APP_ID) {
             const mentionText = entity.text || '';
             text = text.replace(mentionText, '').trim();
           }
@@ -763,7 +764,8 @@ class NanoClawTeamsHandler extends TeamsActivityHandler {
 
       const conversationId = activity.conversation.id;
       const jid = `teams:${conversationId}`;
-      const isGroup = activity.conversation.isGroup === true ||
+      const isGroup =
+        activity.conversation.isGroup === true ||
         activity.conversation.conversationType === 'channel' ||
         activity.conversation.conversationType === 'groupChat';
 
@@ -829,8 +831,26 @@ const server = http.createServer(async (req, res) => {
       const body = Buffer.concat(chunks).toString();
       try {
         await adapter.process(
-          { body, headers: req.headers, method: req.method!, url: req.url! } as any,
-          { status: (code: number) => ({ send: (b: any) => { res.writeHead(code); res.end(typeof b === 'string' ? b : JSON.stringify(b)); } }), end: () => { if (!res.writableEnded) { res.writeHead(200); res.end(); } } } as any,
+          {
+            body,
+            headers: req.headers,
+            method: req.method!,
+            url: req.url!,
+          } as any,
+          {
+            status: (code: number) => ({
+              send: (b: any) => {
+                res.writeHead(code);
+                res.end(typeof b === 'string' ? b : JSON.stringify(b));
+              },
+            }),
+            end: () => {
+              if (!res.writableEnded) {
+                res.writeHead(200);
+                res.end();
+              }
+            },
+          } as any,
           async (context) => await bot.run(context),
         );
       } catch (err) {
@@ -855,7 +875,9 @@ const server = http.createServer(async (req, res) => {
         const ref = getRef(conversationId);
         if (!ref) {
           res.writeHead(404);
-          res.end(JSON.stringify({ error: 'No conversation reference for this JID' }));
+          res.end(
+            JSON.stringify({ error: 'No conversation reference for this JID' }),
+          );
           return;
         }
         await adapter.continueConversationAsync(
@@ -926,7 +948,9 @@ loadRefs();
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Teams sidecar listening on port ${PORT}`);
-  console.log(`Forwarding inbound messages to ${NANOCLAW_HOST}/channel/inbound`);
+  console.log(
+    `Forwarding inbound messages to ${NANOCLAW_HOST}/channel/inbound`,
+  );
 });
 ```
 
@@ -1151,6 +1175,7 @@ Add Teams variables. Current content is empty (1 line). Replace with:
 Add the sidecar callback registration. This wires sidecar inbound messages into the existing `channelOpts.onMessage` / `onChatMetadata` callbacks.
 
 Add import at top of file:
+
 ```typescript
 import { registerSidecarCallback } from './credential-proxy.js';
 ```
@@ -1158,21 +1183,21 @@ import { registerSidecarCallback } from './credential-proxy.js';
 After the `startCredentialProxy()` call resolves and before the channel wiring loop (around line 491), add:
 
 ```typescript
-  // Register sidecar inbound callback — routes webhook-based channel
-  // messages (Teams, etc.) through the same onMessage/onChatMetadata pipeline
-  registerSidecarCallback((payload) => {
-    const { channel, jid, message, metadata } = payload;
-    if (metadata) {
-      channelOpts.onChatMetadata(
-        jid,
-        message.timestamp,
-        metadata.name,
-        metadata.channel || channel,
-        metadata.isGroup,
-      );
-    }
-    channelOpts.onMessage(jid, message);
-  });
+// Register sidecar inbound callback — routes webhook-based channel
+// messages (Teams, etc.) through the same onMessage/onChatMetadata pipeline
+registerSidecarCallback((payload) => {
+  const { channel, jid, message, metadata } = payload;
+  if (metadata) {
+    channelOpts.onChatMetadata(
+      jid,
+      message.timestamp,
+      metadata.name,
+      metadata.channel || channel,
+      metadata.isGroup,
+    );
+  }
+  channelOpts.onMessage(jid, message);
+});
 ```
 
 **Important:** Find the exact location by reading `src/index.ts`. The callback must be registered after `channelOpts` is defined but before the channel connection loop. The `channelOpts` definition starts around line 492 and the channel loop starts around line 525 — the callback registration goes between them.
@@ -1187,11 +1212,11 @@ bun run build && bun run typecheck && bun run format:check && bun test
 
 ## Task 5: Skill Documentation
 
-### File: `.claude/skills/add-ms-teams/SKILL.md` (CREATE)
+### File: `.opencode/skills/add-ms-teams/SKILL.md` (CREATE)
 
 Follow the Discord skill template exactly. 5 phases: pre-flight, apply code, setup, registration, verify.
 
-```markdown
+````markdown
 ---
 name: add-ms-teams
 description: Add MS Teams bot channel integration to NanoClaw.
@@ -1222,6 +1247,7 @@ If they have credentials, collect them now. If not, we'll create them in Phase 3
 ```bash
 git remote -v
 ```
+````
 
 If `msteams` is missing, add it:
 
@@ -1425,9 +1451,10 @@ The MS Teams channel supports:
 - Typing indicators while the agent processes
 - Proactive messaging via stored conversation references
 - Multiple registered channels (main + additional)
-```
 
-### File: `.claude/skills/add-ms-teams/TEAMS_SETUP.md` (CREATE)
+````
+
+### File: `.opencode/skills/add-ms-teams/TEAMS_SETUP.md` (CREATE)
 
 Detailed Azure Bot registration walkthrough. Follow the pattern of Slack's `SLACK_SETUP.md`:
 
@@ -1485,7 +1512,8 @@ The messaging endpoint is where Teams sends messages to your bot. For NanoClaw's
 2. Start a tunnel to port 3978:
    ```bash
    ngrok http 3978
-   ```
+````
+
 3. Copy the HTTPS URL (e.g., `https://abc123.ngrok.io`)
 4. In Azure Bot → Configuration, set **Messaging endpoint** to:
    ```
@@ -1495,6 +1523,7 @@ The messaging endpoint is where Teams sends messages to your bot. For NanoClaw's
 ### For production (with a public server)
 
 Set the messaging endpoint to your server's public URL:
+
 ```
 https://your-domain.com/api/messages
 ```
@@ -1574,11 +1603,11 @@ To use the bot in Teams, you need an app manifest:
 
 ## Credential Reference
 
-| Variable         | Where to Find                                                              | Format                         |
-| ---------------- | -------------------------------------------------------------------------- | ------------------------------ |
+| Variable           | Where to Find                                                              | Format                           |
+| ------------------ | -------------------------------------------------------------------------- | -------------------------------- |
 | `TEAMS_APP_ID`     | Azure Bot → Configuration → Microsoft App ID                               | UUID (e.g., `12345678-abcd-...`) |
-| `TEAMS_APP_SECRET` | Azure AD → App Registration → Certificates & secrets → Client secret Value | String                         |
-| `TEAMS_PORT`       | Your choice (default: 3978)                                                | Number                         |
+| `TEAMS_APP_SECRET` | Azure AD → App Registration → Certificates & secrets → Client secret Value | String                           |
+| `TEAMS_PORT`       | Your choice (default: 3978)                                                | Number                           |
 
 ## Troubleshooting
 
@@ -1606,14 +1635,15 @@ By default, bots in Teams channels only receive messages when @mentioned. To rec
 1. Add `ChannelMessage.Read.Group` to your app manifest's `webApplicationInfo.resource` RSC permissions
 2. This requires admin consent in the Teams Admin Center
 3. See: [Microsoft docs on RSC for bots](https://learn.microsoft.com/en-us/microsoftteams/platform/bots/how-to/conversations/channel-messages-with-rsc)
-```
+
+````
 
 ### Validation Gate — Task 5
 
 No code changes — but verify the skill files are well-formed:
 ```bash
 bun run build && bun run typecheck && bun run format:check && bun test
-```
+````
 
 ---
 
@@ -1630,6 +1660,7 @@ All gates must pass. Then `git status` to review all changes and confirm the fil
 ### Expected File Changes
 
 **New files (12):**
+
 - `src/sidecar-channel.ts`
 - `src/channels/msteams.ts`
 - `src/channels/msteams.test.ts`
@@ -1640,12 +1671,12 @@ All gates must pass. Then `git status` to review all changes and confirm the fil
 - `container/teams-sidecar/src/index.ts`
 - `container/teams-sidecar/src/store.ts`
 - `container/teams-sidecar/build.sh`
-- `.claude/skills/add-ms-teams/SKILL.md`
-- `.claude/skills/add-ms-teams/TEAMS_SETUP.md`
+- `.opencode/skills/add-ms-teams/SKILL.md`
+- `.opencode/skills/add-ms-teams/TEAMS_SETUP.md`
 
 **Modified files (3):**
+
 - `src/credential-proxy.ts` (add `/channel/inbound` route + `registerSidecarCallback`)
 - `src/channels/index.ts` (add `import './msteams.js'`)
 - `.env.example` (add Teams variables)
 - `src/index.ts` (add `registerSidecarCallback` wiring)
-

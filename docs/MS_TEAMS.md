@@ -36,7 +36,7 @@ This adds:
 - `src/channels/msteams.ts` - Teams channel class
 - `src/sidecar-channel.ts` - Sidecar infrastructure
 - `container/teams-sidecar/` - Sidecar container
-- `.claude/skills/add-ms-teams/` - Skill documentation
+- `.opencode/skills/add-ms-teams/` - Skill documentation
 
 ### Step 2: Build the Sidecar Container
 
