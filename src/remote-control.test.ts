@@ -80,41 +80,46 @@ describe('remote-control', () => {
   // --- startRemoteControl ---
 
   describe('startRemoteControl', () => {
-    it('spawns claude remote-control and returns the URL', async () => {
+    it('spawns opencode serve and returns the network URL', async () => {
       const proc = createMockProcess();
       spawnMock.mockReturnValue(proc);
 
-      // Simulate URL appearing in stdout file on first poll
-      stdoutFileContent =
-        'Session URL: https://claude.ai/code?bridge=env_abc123\n';
+      stdoutFileContent = `
+  Local access:       http://localhost:49152
+  Network access:     http://192.168.1.100:49152
+`;
       vi.spyOn(process, 'kill').mockImplementation((() => true) as any);
 
       const result = await startRemoteControl('user1', 'tg:123', '/project');
 
-      expect(result).toEqual({
-        ok: true,
-        url: 'https://claude.ai/code?bridge=env_abc123',
-      });
-      expect(spawnMock).toHaveBeenCalledWith(
-        'claude',
-        ['remote-control', '--name', 'NanoClaw Remote'],
-        expect.objectContaining({ cwd: '/project', detached: true }),
-      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.url).toMatch(
+          /^http:\/\/opencode:[\w-]+@192\.168\.1\.100:49152\/?$/,
+        );
+      }
+      const spawnCall = spawnMock.mock.calls[0];
+      expect(spawnCall[0]).toBe('opencode');
+      expect(spawnCall[1]).toContain('serve');
+      expect(spawnCall[1]).toContain('--hostname');
+      expect(spawnCall[1]).toContain('0.0.0.0');
+      expect(spawnCall[2]).toMatchObject({ cwd: '/project', detached: true });
+      expect(spawnCall[2].env?.OPENCODE_SERVER_PASSWORD).toBeDefined();
       expect(proc.unref).toHaveBeenCalled();
     });
 
     it('uses file descriptors for stdout/stderr (not pipes)', async () => {
       const proc = createMockProcess();
       spawnMock.mockReturnValue(proc);
-      stdoutFileContent = 'https://claude.ai/code?bridge=env_test\n';
+      stdoutFileContent = 'Network access:     http://192.168.1.100:49152\n';
       vi.spyOn(process, 'kill').mockImplementation((() => true) as any);
 
       await startRemoteControl('user1', 'tg:123', '/project');
 
       const spawnCall = spawnMock.mock.calls[0];
       const options = spawnCall[2];
-      // stdio[0] is 'pipe' so we can write 'y' to accept the prompt
-      expect(options.stdio[0]).toBe('pipe');
+      // stdio[0] is 'ignore' for OpenCode (no prompt)
+      expect(options.stdio[0]).toBe('ignore');
       expect(typeof options.stdio[1]).toBe('number');
       expect(typeof options.stdio[2]).toBe('number');
     });
@@ -122,7 +127,7 @@ describe('remote-control', () => {
     it('closes file descriptors in parent after spawn', async () => {
       const proc = createMockProcess();
       spawnMock.mockReturnValue(proc);
-      stdoutFileContent = 'https://claude.ai/code?bridge=env_test\n';
+      stdoutFileContent = 'Network access:     http://192.168.1.100:49152\n';
       vi.spyOn(process, 'kill').mockImplementation((() => true) as any);
 
       await startRemoteControl('user1', 'tg:123', '/project');
@@ -135,7 +140,7 @@ describe('remote-control', () => {
     it('saves state to disk after capturing URL', async () => {
       const proc = createMockProcess(99999);
       spawnMock.mockReturnValue(proc);
-      stdoutFileContent = 'https://claude.ai/code?bridge=env_save\n';
+      stdoutFileContent = 'Network access:     http://192.168.1.100:49152\n';
       vi.spyOn(process, 'kill').mockImplementation((() => true) as any);
 
       await startRemoteControl('user1', 'tg:123', '/project');
@@ -144,22 +149,31 @@ describe('remote-control', () => {
         STATE_FILE,
         expect.stringContaining('"pid":99999'),
       );
+      expect(writeFileSyncSpy).toHaveBeenCalledWith(
+        STATE_FILE,
+        expect.stringContaining('"port":'),
+      );
+      expect(writeFileSyncSpy).toHaveBeenCalledWith(
+        STATE_FILE,
+        expect.stringContaining('"password":'),
+      );
     });
 
     it('returns existing URL if session is already active', async () => {
       const proc = createMockProcess();
       spawnMock.mockReturnValue(proc);
-      stdoutFileContent = 'https://claude.ai/code?bridge=env_existing\n';
+      stdoutFileContent = 'Network access:     http://192.168.1.100:49152\n';
       vi.spyOn(process, 'kill').mockImplementation((() => true) as any);
 
-      await startRemoteControl('user1', 'tg:123', '/project');
+      const result1 = await startRemoteControl('user1', 'tg:123', '/project');
+      expect(result1.ok).toBe(true);
 
       // Second call should return existing URL without spawning
-      const result = await startRemoteControl('user2', 'tg:456', '/project');
-      expect(result).toEqual({
-        ok: true,
-        url: 'https://claude.ai/code?bridge=env_existing',
-      });
+      const result2 = await startRemoteControl('user2', 'tg:456', '/project');
+      expect(result2.ok).toBe(true);
+      if (result2.ok && result1.ok) {
+        expect(result2.url).toBe(result1.url);
+      }
       expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 
@@ -172,7 +186,7 @@ describe('remote-control', () => {
       const killSpy = vi
         .spyOn(process, 'kill')
         .mockImplementation((() => true) as any);
-      stdoutFileContent = 'https://claude.ai/code?bridge=env_first\n';
+      stdoutFileContent = 'Network access:     http://192.168.1.100:49152\n';
       await startRemoteControl('user1', 'tg:123', '/project');
 
       // Old process (11111) is dead, new process (22222) is alive
@@ -183,13 +197,14 @@ describe('remote-control', () => {
         return true;
       }) as any);
 
-      stdoutFileContent = 'https://claude.ai/code?bridge=env_second\n';
+      stdoutFileContent = 'Network access:     http://192.168.1.100:49153\n';
       const result = await startRemoteControl('user1', 'tg:123', '/project');
 
-      expect(result).toEqual({
-        ok: true,
-        url: 'https://claude.ai/code?bridge=env_second',
-      });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.url).toContain('http://');
+        expect(result.url).toContain('@192.168.1.100:49153');
+      }
       expect(spawnMock).toHaveBeenCalledTimes(2);
     });
 
@@ -252,7 +267,7 @@ describe('remote-control', () => {
     it('kills the process and clears state', async () => {
       const proc = createMockProcess(55555);
       spawnMock.mockReturnValue(proc);
-      stdoutFileContent = 'https://claude.ai/code?bridge=env_stop\n';
+      stdoutFileContent = 'Network access:     http://192.168.1.100:49152\n';
       const killSpy = vi
         .spyOn(process, 'kill')
         .mockImplementation((() => true) as any);
@@ -281,7 +296,9 @@ describe('remote-control', () => {
     it('restores session if state file exists and process is alive', () => {
       const session = {
         pid: 77777,
-        url: 'https://claude.ai/code?bridge=env_restored',
+        url: 'http://opencode:Apple-Banana-Cherry@192.168.1.100:49152',
+        port: 49152,
+        password: 'Apple-Banana-Cherry',
         startedBy: 'user1',
         startedInChat: 'tg:123',
         startedAt: '2026-01-01T00:00:00.000Z',
@@ -297,13 +314,19 @@ describe('remote-control', () => {
       const active = getActiveSession();
       expect(active).not.toBeNull();
       expect(active!.pid).toBe(77777);
-      expect(active!.url).toBe('https://claude.ai/code?bridge=env_restored');
+      expect(active!.url).toBe(
+        'http://opencode:Apple-Banana-Cherry@192.168.1.100:49152',
+      );
+      expect(active!.port).toBe(49152);
+      expect(active!.password).toBe('Apple-Banana-Cherry');
     });
 
     it('clears state if process is dead', () => {
       const session = {
         pid: 88888,
-        url: 'https://claude.ai/code?bridge=env_dead',
+        url: 'http://opencode:Apple-Banana-Cherry@192.168.1.100:49152',
+        port: 49152,
+        password: 'Apple-Banana-Cherry',
         startedBy: 'user1',
         startedInChat: 'tg:123',
         startedAt: '2026-01-01T00:00:00.000Z',
@@ -344,7 +367,9 @@ describe('remote-control', () => {
     it('stopRemoteControl works after restoreRemoteControl', () => {
       const session = {
         pid: 77777,
-        url: 'https://claude.ai/code?bridge=env_restored',
+        url: 'http://opencode:Apple-Banana-Cherry@192.168.1.100:49152',
+        port: 49152,
+        password: 'Apple-Banana-Cherry',
         startedBy: 'user1',
         startedInChat: 'tg:123',
         startedAt: '2026-01-01T00:00:00.000Z',
@@ -370,7 +395,9 @@ describe('remote-control', () => {
     it('startRemoteControl returns restored URL without spawning', () => {
       const session = {
         pid: 77777,
-        url: 'https://claude.ai/code?bridge=env_restored',
+        url: 'http://opencode:Apple-Banana-Cherry@192.168.1.100:49152',
+        port: 49152,
+        password: 'Apple-Banana-Cherry',
         startedBy: 'user1',
         startedInChat: 'tg:123',
         startedAt: '2026-01-01T00:00:00.000Z',
@@ -385,10 +412,12 @@ describe('remote-control', () => {
 
       return startRemoteControl('user2', 'tg:456', '/project').then(
         (result) => {
-          expect(result).toEqual({
-            ok: true,
-            url: 'https://claude.ai/code?bridge=env_restored',
-          });
+          expect(result.ok).toBe(true);
+          if (result.ok) {
+            expect(result.url).toBe(
+              'http://opencode:Apple-Banana-Cherry@192.168.1.100:49152',
+            );
+          }
           expect(spawnMock).not.toHaveBeenCalled();
         },
       );

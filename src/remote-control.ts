@@ -8,6 +8,8 @@ import { logger } from './logger.js';
 interface RemoteControlSession {
   pid: number;
   url: string;
+  port: number;
+  password: string;
   startedBy: string;
   startedInChat: string;
   startedAt: string;
@@ -15,7 +17,7 @@ interface RemoteControlSession {
 
 let activeSession: RemoteControlSession | null = null;
 
-const URL_REGEX = /https:\/\/claude\.ai\/code\S+/;
+const NETWORK_URL_REGEX = /Network access:\s*(http:\/\/[\d.]+:\d+)/;
 const URL_TIMEOUT_MS = 30_000;
 const URL_POLL_MS = 200;
 const STATE_FILE = path.join(DATA_DIR, 'remote-control.json');
@@ -42,6 +44,97 @@ function isProcessAlive(pid: number): boolean {
   } catch {
     return false;
   }
+}
+
+function generatePassword(): string {
+  const words = [
+    'apple',
+    'apricot',
+    'avocado',
+    'banana',
+    'blackberry',
+    'blueberry',
+    'bread',
+    'butter',
+    'cantaloupe',
+    'cherry',
+    'chocolate',
+    'cinnamon',
+    'coconut',
+    'cookie',
+    'cracker',
+    'cranberry',
+    'cream',
+    'croissant',
+    'dragonfruit',
+    'durian',
+    'fig',
+    'ginger',
+    'grape',
+    'grapefruit',
+    'guava',
+    'honey',
+    'honeydew',
+    'jam',
+    'kiwi',
+    'lemon',
+    'lime',
+    'mango',
+    'maple',
+    'melon',
+    'milk',
+    'nectarine',
+    'nut',
+    'oatmeal',
+    'olive',
+    'orange',
+    'papaya',
+    'peach',
+    'peanut',
+    'pear',
+    'pecan',
+    'pepper',
+    'pickle',
+    'pie',
+    'pineapple',
+    'plum',
+    'pomegranate',
+    'popcorn',
+    'pumpkin',
+    'radish',
+    'raisin',
+    'raspberry',
+    'rice',
+    'salt',
+    'sandwich',
+    'sauce',
+    'smoothie',
+    'spinach',
+    'squash',
+    'steak',
+    'strawberry',
+    'sugar',
+    'toast',
+    'tomato',
+    'turkey',
+    'vanilla',
+    'waffle',
+    'walnut',
+    'watermelon',
+    'wheat',
+    'yogurt',
+  ];
+
+  const pick = () => words[Math.floor(Math.random() * words.length)];
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  return `${capitalize(pick())}-${capitalize(pick())}-${capitalize(pick())}`;
+}
+
+function generateRandomPort(): number {
+  const MIN_PORT = 49152;
+  const MAX_PORT = 65535;
+  return Math.floor(Math.random() * (MAX_PORT - MIN_PORT + 1)) + MIN_PORT;
 }
 
 /**
@@ -101,6 +194,10 @@ export async function startRemoteControl(
     clearState();
   }
 
+  // Generate random port and password for OpenCode serve
+  const port = generateRandomPort();
+  const password = generatePassword();
+
   // Redirect stdout/stderr to files so the process has no pipes to the parent.
   // This prevents SIGPIPE when NanoClaw restarts.
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -109,21 +206,23 @@ export async function startRemoteControl(
 
   let proc;
   try {
-    proc = spawn('claude', ['remote-control', '--name', 'NanoClaw Remote'], {
-      cwd,
-      stdio: ['pipe', stdoutFd, stderrFd],
-      detached: true,
-    });
+    proc = spawn(
+      'opencode',
+      ['serve', '--hostname', '0.0.0.0', '--port', String(port)],
+      {
+        cwd,
+        stdio: ['ignore', stdoutFd, stderrFd],
+        detached: true,
+        env: {
+          ...process.env,
+          OPENCODE_SERVER_PASSWORD: password,
+        },
+      },
+    );
   } catch (err: any) {
     fs.closeSync(stdoutFd);
     fs.closeSync(stderrFd);
     return { ok: false, error: `Failed to start: ${err.message}` };
-  }
-
-  // Auto-accept the "Enable Remote Control?" prompt
-  if (proc.stdin) {
-    proc.stdin.write('y\n');
-    proc.stdin.end();
   }
 
   // Close FDs in the parent — the child inherited copies
@@ -157,11 +256,17 @@ export async function startRemoteControl(
         // File might not have content yet
       }
 
-      const match = content.match(URL_REGEX);
+      const match = content.match(NETWORK_URL_REGEX);
       if (match) {
+        const urlObj = new URL(match[1]);
+        urlObj.username = 'opencode';
+        urlObj.password = password;
+
         const session: RemoteControlSession = {
           pid,
-          url: match[0],
+          url: urlObj.toString(),
+          port,
+          password,
           startedBy: sender,
           startedInChat: chatJid,
           startedAt: new Date().toISOString(),
@@ -170,10 +275,10 @@ export async function startRemoteControl(
         saveState(session);
 
         logger.info(
-          { url: match[0], pid, sender, chatJid },
+          { url: urlObj.toString(), pid, sender, chatJid },
           'Remote Control session started',
         );
-        resolve({ ok: true, url: match[0] });
+        resolve({ ok: true, url: urlObj.toString() });
         return;
       }
 
