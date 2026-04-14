@@ -100,6 +100,12 @@ export function getServiceManager(): ServiceManager {
 
 export function getNodePath(): string {
   try {
+    if (process.platform === 'win32') {
+      return execSync('where.exe node', { encoding: 'utf-8' })
+        .split(/\r?\n/)
+        .find((line) => line.trim())!
+        .trim();
+    }
     return execSync('command -v node', { encoding: 'utf-8' }).trim();
   } catch {
     return process.execPath;
@@ -108,6 +114,10 @@ export function getNodePath(): string {
 
 export function commandExists(name: string): boolean {
   try {
+    if (process.platform === 'win32') {
+      execSync(`where.exe ${name}`, { stdio: 'ignore' });
+      return true;
+    }
     execSync(`command -v ${name}`, { stdio: 'ignore' });
     return true;
   } catch {
