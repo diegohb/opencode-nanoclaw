@@ -62,28 +62,14 @@ grep -E 'Connected|Connection closed|connection.*close|channel.*ready' logs/nano
 grep 'groupCount' logs/nanoclaw.log | tail -3
 ```
 
-## Session Transcript Branching
+## Session State Inspection
 
 ```bash
-# Check for concurrent CLI processes in session debug logs
-ls -la data/sessions/<group>/.claude/debug/
+# Check whether OpenCode state files are being persisted
+ls -la data/sessions/<group>/opencode-state/
 
-# Count unique SDK processes that handled messages
-# Each .txt file = one CLI subprocess. Multiple = concurrent queries.
-
-# Check parentUuid branching in transcript
-python3 -c "
-import json, sys
-lines = open('data/sessions/<group>/.claude/projects/-workspace-group/<session>.jsonl').read().strip().split('\n')
-for i, line in enumerate(lines):
-  try:
-    d = json.loads(line)
-    if d.get('type') == 'user' and d.get('message'):
-      parent = d.get('parentUuid', 'ROOT')[:8]
-      content = str(d['message'].get('content', ''))[:60]
-      print(f'L{i+1} parent={parent} {content}')
-  except: pass
-"
+# Compare recent state updates over time
+Get-ChildItem data/sessions/<group>/opencode-state -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 20 FullName,LastWriteTime
 ```
 
 ## Container Timeout Investigation

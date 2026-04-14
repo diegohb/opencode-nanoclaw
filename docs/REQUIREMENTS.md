@@ -68,9 +68,9 @@ A personal Claude assistant accessible via messaging, with minimal custom code.
 - **Browser automation** via agent-browser
 
 **Implementation approach:**
-- Use existing tools (channel libraries, Claude Agent SDK, MCP servers)
+- Use existing tools (channel libraries, OpenCode, MCP servers)
 - Minimal glue code
-- File-based systems where possible (CLAUDE.md for memory, folders for groups)
+- File-based systems where possible (AGENTS.md for memory, folders for groups)
 
 ---
 
@@ -83,13 +83,13 @@ A personal Claude assistant accessible via messaging, with minimal custom code.
 - Unregistered groups are ignored completely
 
 ### Memory System
-- **Per-group memory**: Each group has a folder with its own `CLAUDE.md`
-- **Global memory**: Root `CLAUDE.md` is read by all groups, but only writable from "main" (self-chat)
+- **Per-group memory**: Each group has a folder with its own `AGENTS.md`
+- **Global memory**: Root `AGENTS.md` is read by all groups, but only writable from "main" (self-chat)
 - **Files**: Groups can create/read files in their folder and reference them
-- Agent runs in the group's folder, automatically inherits both CLAUDE.md files
+- Agent runs in the group's folder, automatically inherits both AGENTS.md files
 
 ### Session Management
-- Each group maintains a conversation session (via Claude Agent SDK)
+- Each group maintains a conversation session via OpenCode
 - Sessions auto-compact when context gets too long, preserving critical information
 
 ### Container Isolation
@@ -100,7 +100,7 @@ A personal Claude assistant accessible via messaging, with minimal custom code.
 - Browser automation via agent-browser with Chromium in the container
 
 ### Scheduled Tasks
-- Users can ask Claude to schedule recurring or one-time tasks from any group
+- Users can ask the agent to schedule recurring or one-time tasks from any group
 - Tasks run as full agents in the context of the group that created them
 - Tasks have access to all tools including Bash (safe in container)
 - Tasks can optionally send messages to their group via `send_message` tool, or complete silently
@@ -117,7 +117,7 @@ A personal Claude assistant accessible via messaging, with minimal custom code.
 
 ### Main Channel Privileges
 - Main channel is the admin/control group (typically self-chat)
-- Can write to global memory (`groups/CLAUDE.md`)
+- Can write to global memory (`groups/AGENTS.md`)
 - Can schedule tasks for any group
 - Can view and manage tasks from all groups
 - Can configure additional directory mounts for any group

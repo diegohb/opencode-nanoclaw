@@ -195,7 +195,7 @@ bash container/build.sh
 
 ```bash
 # Apply the Telegram skill
-npx tsx scripts/apply-skill.ts .claude/skills/add-telegram
+npx tsx scripts/apply-skill.ts .opencode/skills/add-telegram
 
 # Rebuild after applying the skill
 npm run build
@@ -235,7 +235,7 @@ Make sure you configured proxy bypass in [Step 1](#step-1-create-the-sandbox) fi
 
 ```bash
 # Apply the WhatsApp skill
-npx tsx scripts/apply-skill.ts .claude/skills/add-whatsapp
+npx tsx scripts/apply-skill.ts .opencode/skills/add-whatsapp
 
 # Rebuild
 npm run build
