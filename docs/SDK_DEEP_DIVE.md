@@ -1,6 +1,6 @@
-# Claude Agent SDK Deep Dive
+# Legacy Claude Agent SDK Deep Dive
 
-Findings from reverse-engineering `@anthropic-ai/claude-agent-sdk` v0.2.29–0.2.34 to understand how `query()` works, why agent teams subagents were being killed, and how to fix it. Supplemented with official SDK reference docs.
+Historical notes from reverse-engineering `@anthropic-ai/claude-agent-sdk` v0.2.29–0.2.34. NanoClaw now runs on OpenCode; this document is retained only as background for older fork history and should not be used as the current runtime reference.
 
 ## Architecture
 
@@ -84,15 +84,15 @@ Full `Options` type from the official docs:
 | `maxThinkingTokens` | `number` | `undefined` | Maximum tokens for thinking process |
 | `maxTurns` | `number` | `undefined` | Maximum conversation turns |
 | `mcpServers` | `Record<string, McpServerConfig>` | `{}` | MCP server configurations |
-| `model` | `string` | Default from CLI | Claude model to use |
+| `model` | `string` | Default from CLI | Historical Claude model to use |
 | `outputFormat` | `{ type: 'json_schema', schema: JSONSchema }` | `undefined` | Structured output format |
-| `pathToClaudeCodeExecutable` | `string` | Uses built-in | Path to Claude Code executable |
+| `pathToClaudeCodeExecutable` | `string` | Uses built-in | Path to the Claude Code executable |
 | `permissionMode` | `PermissionMode` | `'default'` | Permission mode |
 | `plugins` | `SdkPluginConfig[]` | `[]` | Load custom plugins from local paths |
 | `resume` | `string` | `undefined` | Session ID to resume |
 | `resumeSessionAt` | `string` | `undefined` | Resume session at a specific message UUID |
 | `sandbox` | `SandboxSettings` | `undefined` | Sandbox behavior configuration |
-| `settingSources` | `SettingSource[]` | `[]` (none) | Which filesystem settings to load. Must include `'project'` to load CLAUDE.md |
+| `settingSources` | `SettingSource[]` | `[]` (none) | Historical Claude SDK setting sources. NanoClaw now uses OpenCode `instructions` with `AGENTS.md`. |
 | `stderr` | `(data: string) => void` | `undefined` | Callback for stderr output |
 | `systemPrompt` | `string \| { type: 'preset'; preset: 'claude_code'; append?: string }` | `undefined` | System prompt. Use preset to get Claude Code's prompt, with optional `append` |
 | `tools` | `string[] \| { type: 'preset'; preset: 'claude_code' }` | `undefined` | Tool configuration |
@@ -110,6 +110,9 @@ type SettingSource = 'user' | 'project' | 'local';
 // 'user'    → ~/.claude/settings.json
 // 'project' → .claude/settings.json (version controlled)
 // 'local'   → .claude/settings.local.json (gitignored)
+
+// Historical note only. The current OpenCode layout uses `.opencode/opencode.json`
+// plus `AGENTS.md` instruction files instead of Claude SDK setting sources.
 ```
 
 When omitted, SDK loads NO filesystem settings (isolation by default). Precedence: local > project > user. Programmatic options always override filesystem settings.
