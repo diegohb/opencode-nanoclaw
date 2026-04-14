@@ -20,6 +20,10 @@ import {
   getRegisteredChannelNames,
 } from './channels/registry.js';
 import {
+  startInboundServer,
+  registerSidecarCallback,
+} from './inbound-server.js';
+import {
   ContainerOutput,
   runContainerAgent,
   writeGroupsSnapshot,
@@ -673,6 +677,22 @@ async function main(): Promise<void> {
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
     registeredGroups: () => registeredGroups,
   };
+
+  // Start inbound HTTP server for sidecar channels (e.g. MS Teams)
+  startInboundServer();
+  registerSidecarCallback((payload) => {
+    const { channel, jid, message, metadata } = payload;
+    if (metadata) {
+      channelOpts.onChatMetadata(
+        jid,
+        message.timestamp,
+        metadata.name,
+        metadata.channel || channel,
+        metadata.isGroup,
+      );
+    }
+    channelOpts.onMessage(jid, message);
+  });
 
   // Create and connect all registered channels.
   // Each channel self-registers via the barrel import above.
