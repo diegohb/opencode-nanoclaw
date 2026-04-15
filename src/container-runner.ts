@@ -62,6 +62,11 @@ interface VolumeMount {
 }
 
 const OPENCODE_DEFAULTS_DIR = '/workspace/opencode-defaults';
+const OPENCODE_DEFAULT_MOUNTS = [
+  { source: 'opencode.json', target: 'opencode.json' },
+  { source: 'package.json', target: 'package.json' },
+  { source: 'skills', target: 'skills' },
+];
 
 /**
  * Read model and small_model from the host's OpenCode global config.
@@ -116,6 +121,24 @@ function resolveOpencodeConfig(
   return { config, usedHostModelDefaults };
 }
 
+function buildOpencodeDefaultMounts(projectRoot: string): VolumeMount[] {
+  const opencodeDefaultsDir = path.join(projectRoot, '.opencode');
+  if (!fs.existsSync(opencodeDefaultsDir)) return [];
+
+  return OPENCODE_DEFAULT_MOUNTS.flatMap(({ source, target }) => {
+    const hostPath = path.join(opencodeDefaultsDir, source);
+    if (!fs.existsSync(hostPath)) return [];
+
+    return [
+      {
+        hostPath,
+        containerPath: `${OPENCODE_DEFAULTS_DIR}/${target}`,
+        readonly: true,
+      },
+    ];
+  });
+}
+
 function buildVolumeMounts(
   group: RegisteredGroup,
   isMain: boolean,
@@ -123,15 +146,7 @@ function buildVolumeMounts(
   const mounts: VolumeMount[] = [];
   const projectRoot = process.cwd();
   const groupDir = resolveGroupFolderPath(group.folder);
-  const opencodeDefaultsDir = path.join(projectRoot, '.opencode');
-
-  if (fs.existsSync(opencodeDefaultsDir)) {
-    mounts.push({
-      hostPath: opencodeDefaultsDir,
-      containerPath: OPENCODE_DEFAULTS_DIR,
-      readonly: true,
-    });
-  }
+  mounts.push(...buildOpencodeDefaultMounts(projectRoot));
 
   if (isMain) {
     // Main gets the project root read-only. Writable paths the agent needs

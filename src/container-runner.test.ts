@@ -315,7 +315,7 @@ describe('container-runner timeout behavior', () => {
     });
   });
 
-  it('mounts repo OpenCode defaults into the container', async () => {
+  it('mounts only runtime-adjacent OpenCode defaults into the container', async () => {
     const existsSync = vi.mocked(fs.existsSync);
     existsSync.mockImplementation((path) =>
       String(path).includes('.opencode') || String(path).includes('/logs'),
@@ -333,7 +333,19 @@ describe('container-runner timeout behavior', () => {
     const containerArgs = spawnCalls[spawnCalls.length - 1]?.[1] as string[];
 
     expect(
-      containerArgs.some((arg) => arg.includes('/workspace/opencode-defaults')),
+      containerArgs.some((arg) =>
+        arg.includes('/workspace/opencode-defaults/opencode.json'),
+      ),
     ).toBe(true);
+    expect(
+      containerArgs.some((arg) =>
+        arg.includes('/workspace/opencode-defaults/package.json'),
+      ),
+    ).toBe(true);
+    expect(
+      containerArgs.some((arg) => arg.includes('/workspace/opencode-defaults/skills')),
+    ).toBe(true);
+    expect(containerArgs.some((arg) => arg.includes('bun.lock'))).toBe(false);
+    expect(containerArgs.some((arg) => arg.includes('node_modules'))).toBe(false);
   });
 });
