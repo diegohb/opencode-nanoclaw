@@ -275,8 +275,9 @@ describe('container-runner timeout behavior', () => {
   it('uses host OpenCode model defaults when group config omits models', async () => {
     const existsSync = vi.mocked(fs.existsSync);
     const readFileSync = vi.mocked(fs.readFileSync);
-    existsSync.mockImplementation((path) =>
-      String(path).includes('.config') || String(path).includes('/logs'),
+    existsSync.mockImplementation(
+      (path) =>
+        String(path).includes('.config') || String(path).includes('/logs'),
     );
     readFileSync.mockImplementation((path) => {
       if (String(path).includes('.config')) {
@@ -323,8 +324,9 @@ describe('container-runner timeout behavior', () => {
 
   it('mounts only runtime-adjacent OpenCode defaults into the container', async () => {
     const existsSync = vi.mocked(fs.existsSync);
-    existsSync.mockImplementation((path) =>
-      String(path).includes('.opencode') || String(path).includes('/logs'),
+    existsSync.mockImplementation(
+      (path) =>
+        String(path).includes('.opencode') || String(path).includes('/logs'),
     );
 
     const resultPromise = runContainerAgent(testGroup, testInput, () => {});
@@ -344,13 +346,17 @@ describe('container-runner timeout behavior', () => {
       ),
     ).toBe(true);
     expect(
-      containerArgs.some((arg) => arg.includes('/workspace/opencode-defaults/skills')),
+      containerArgs.some((arg) =>
+        arg.includes('/workspace/opencode-defaults/skills'),
+      ),
     ).toBe(true);
     expect(containerArgs.some((arg) => arg.includes('package.json'))).toBe(
       false,
     );
     expect(containerArgs.some((arg) => arg.includes('bun.lock'))).toBe(false);
-    expect(containerArgs.some((arg) => arg.includes('node_modules'))).toBe(false);
+    expect(containerArgs.some((arg) => arg.includes('node_modules'))).toBe(
+      false,
+    );
   });
 });
 
@@ -376,7 +382,10 @@ describe('container-runner credential strategy', () => {
         ...testGroup,
         containerConfig: {
           // credentialStrategy omitted → defaults to 'onecli'
-          opencodeConfig: { provider: 'anthropic', apiKey: 'ANTHROPIC_API_KEY' },
+          opencodeConfig: {
+            provider: 'anthropic',
+            apiKey: 'ANTHROPIC_API_KEY',
+          },
         },
       },
       testInput,
@@ -407,7 +416,10 @@ describe('container-runner credential strategy', () => {
         ...testGroup,
         containerConfig: {
           credentialStrategy: 'direct',
-          opencodeConfig: { provider: 'anthropic', apiKey: 'ANTHROPIC_API_KEY' },
+          opencodeConfig: {
+            provider: 'anthropic',
+            apiKey: 'ANTHROPIC_API_KEY',
+          },
         },
       },
       testInput,
@@ -441,7 +453,10 @@ describe('container-runner credential strategy', () => {
         ...testGroup,
         containerConfig: {
           credentialStrategy: 'direct',
-          opencodeConfig: { provider: 'anthropic', apiKey: 'ANTHROPIC_API_KEY' },
+          opencodeConfig: {
+            provider: 'anthropic',
+            apiKey: 'ANTHROPIC_API_KEY',
+          },
         },
       },
       testInput,
@@ -473,7 +488,10 @@ describe('container-runner credential strategy', () => {
         ...testGroup,
         containerConfig: {
           credentialStrategy: 'direct',
-          opencodeConfig: { provider: 'opencode', model: 'opencode/kimi-k2.5-free' },
+          opencodeConfig: {
+            provider: 'opencode',
+            model: 'opencode/kimi-k2.5-free',
+          },
         },
       },
       testInput,

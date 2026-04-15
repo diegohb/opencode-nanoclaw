@@ -39,7 +39,9 @@ export function startInboundServer(
           const payload = JSON.parse(Buffer.concat(chunks).toString());
           if (!sidecarCallback) {
             res.writeHead(503, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'No sidecar callback registered' }));
+            res.end(
+              JSON.stringify({ error: 'No sidecar callback registered' }),
+            );
             return;
           }
           sidecarCallback(payload);

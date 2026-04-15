@@ -27,7 +27,11 @@ import {
 } from './container-runtime.js';
 import { OneCLI } from '@onecli-sh/sdk';
 import { validateAdditionalMounts } from './mount-security.js';
-import { CredentialStrategy, OpencodeConfig, RegisteredGroup } from './types.js';
+import {
+  CredentialStrategy,
+  OpencodeConfig,
+  RegisteredGroup,
+} from './types.js';
 
 const onecli = new OneCLI({ url: ONECLI_URL });
 
@@ -79,16 +83,27 @@ const OPENCODE_DEFAULT_MOUNTS = [
  * settings are excluded so the container doesn't need the host environment.
  * Returns null when no config or no model fields are found.
  */
-function readHostOpencodeModel(): { model?: string; small_model?: string } | null {
-  const cfgPath = path.join(os.homedir(), '.config', 'opencode', 'opencode.json');
+function readHostOpencodeModel(): {
+  model?: string;
+  small_model?: string;
+} | null {
+  const cfgPath = path.join(
+    os.homedir(),
+    '.config',
+    'opencode',
+    'opencode.json',
+  );
   if (!fs.existsSync(cfgPath)) return null;
   try {
     const raw = fs.readFileSync(cfgPath, 'utf-8');
     // Strip JSONC comments (// and /* */ style)
-    const stripped = raw.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const stripped = raw
+      .replace(/\/\/[^\n]*/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
     const parsed = JSON.parse(stripped) as Record<string, unknown>;
     const model = typeof parsed.model === 'string' ? parsed.model : undefined;
-    const small_model = typeof parsed.small_model === 'string' ? parsed.small_model : undefined;
+    const small_model =
+      typeof parsed.small_model === 'string' ? parsed.small_model : undefined;
     return model || small_model ? { model, small_model } : null;
   } catch {
     return null;
@@ -386,10 +401,8 @@ export async function runContainerAgent(
   const groupDir = resolveGroupFolderPath(group.folder);
   fs.mkdirSync(groupDir, { recursive: true });
 
-  const { config: opencodeConfig, usedHostModelDefaults } = resolveOpencodeConfig(
-    group,
-    input,
-  );
+  const { config: opencodeConfig, usedHostModelDefaults } =
+    resolveOpencodeConfig(group, input);
   if (opencodeConfig) {
     input = {
       ...input,
