@@ -384,12 +384,36 @@ Additional mounts appear at `/workspace/extra/{containerPath}` inside the contai
 
 ### Provider Authentication
 
-Configure provider credentials on the host and let OneCLI inject them at request time. Common variables still include Anthropic-style keys in `.env` during setup, for example:
+NanoClaw supports two credential strategies, configured per group via `containerConfig.credentialStrategy`.
+
+#### Direct Auth (`'direct'`) — recommended default
+
+Set provider keys in `.env` on the host:
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-api03-...
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
+
+Then configure the group to name which key to use:
+
+```json
+{
+  "credentialStrategy": "direct",
+  "opencodeConfig": {
+    "provider": "anthropic",
+    "apiKey": "ANTHROPIC_API_KEY"
+  }
+}
+```
+
+At container spawn time, NanoClaw reads the named env var from the host and forwards its value to the container via `ContainerInput.secrets`. The container's `writeOpencodeConfig()` writes the key only to `opencode.json` for that session. No gateway is required.
+
+**Security note:** The API key traverses container memory during the process lifetime. The `.env` file itself is still shadowed to prevent other secrets from leaking via the project-root mount.
+
+#### OneCLI Gateway (`'onecli'`) — optional, stronger isolation
+
+When `credentialStrategy` is `'onecli'` (or omitted — backward-compatible default), NanoClaw calls `onecli.applyContainerConfig()` to route outbound HTTPS through the OneCLI proxy. Credentials never appear in the container process at all. See [SECURITY.md](SECURITY.md) for the full gateway model.
 
 Only the variables required by the host setup flow should be present in `.env`. Containers should not rely on local Claude credential files.
 

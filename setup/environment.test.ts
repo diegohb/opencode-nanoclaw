@@ -3,7 +3,7 @@ import fs from 'fs';
 
 import Database from 'better-sqlite3';
 
-import { hasConfiguredCredentials } from './credentials.js';
+import { hasConfiguredCredentials, hasDirectProviderCredentials, hasOneCLIConfig } from './credentials.js';
 
 /**
  * Tests for the environment check step.
@@ -94,6 +94,42 @@ describe('credentials detection', () => {
   it('returns false when no credentials', () => {
     const content = 'ASSISTANT_NAME="Andy"\nOTHER=foo';
     expect(hasConfiguredCredentials(content)).toBe(false);
+  });
+});
+
+describe('direct provider credentials detection', () => {
+  it('detects ANTHROPIC_API_KEY as direct credential', () => {
+    expect(hasDirectProviderCredentials('ANTHROPIC_API_KEY=sk-ant-test')).toBe(true);
+  });
+
+  it('detects OPENAI_API_KEY as direct credential', () => {
+    expect(hasDirectProviderCredentials('OPENAI_API_KEY=sk-openai-test')).toBe(true);
+  });
+
+  it('detects OPENROUTER_API_KEY as direct credential', () => {
+    expect(hasDirectProviderCredentials('OPENROUTER_API_KEY=or-test')).toBe(true);
+  });
+
+  it('detects CLAUDE_CODE_OAUTH_TOKEN as direct credential', () => {
+    expect(hasDirectProviderCredentials('CLAUDE_CODE_OAUTH_TOKEN=tok')).toBe(true);
+  });
+
+  it('returns false when only ONECLI_URL is set', () => {
+    expect(hasDirectProviderCredentials('ONECLI_URL=http://localhost:10254')).toBe(false);
+  });
+
+  it('returns false for empty content', () => {
+    expect(hasDirectProviderCredentials('')).toBe(false);
+  });
+});
+
+describe('OneCLI config detection', () => {
+  it('detects ONECLI_URL in env content', () => {
+    expect(hasOneCLIConfig('ONECLI_URL=http://localhost:10254')).toBe(true);
+  });
+
+  it('returns false when ONECLI_URL is absent', () => {
+    expect(hasOneCLIConfig('ANTHROPIC_API_KEY=sk-ant-test')).toBe(false);
   });
 });
 

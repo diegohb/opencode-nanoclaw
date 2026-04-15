@@ -27,7 +27,7 @@ import {
 } from './container-runtime.js';
 import { OneCLI } from '@onecli-sh/sdk';
 import { validateAdditionalMounts } from './mount-security.js';
-import { OpencodeConfig, RegisteredGroup } from './types.js';
+import { CredentialStrategy, OpencodeConfig, RegisteredGroup } from './types.js';
 
 const onecli = new OneCLI({ url: ONECLI_URL });
 
@@ -46,6 +46,12 @@ export interface ContainerInput {
   script?: string;
   /** Runtime config forwarded to the container's opencode runner. */
   opencodeConfig?: OpencodeConfig;
+  /**
+   * Provider secrets forwarded to the container when using the 'direct'
+   * credential strategy. Keys should match `opencodeConfig.apiKey`.
+   * Never populated when using the 'onecli' strategy.
+   */
+  secrets?: Record<string, string>;
 }
 
 export interface ContainerOutput {
@@ -87,6 +93,24 @@ function readHostOpencodeModel(): { model?: string; small_model?: string } | nul
   } catch {
     return null;
   }
+}
+
+/**
+ * Gather provider secrets from the host environment for the 'direct'
+ * credential strategy. Reads the value of each required env var and returns
+ * a secrets map keyed by env var name. Only non-empty values are included.
+ * The caller decides which key names to request (typically `apiKey` from the
+ * group's OpencodeConfig).
+ */
+function gatherDirectSecrets(config: OpencodeConfig): Record<string, string> {
+  const secrets: Record<string, string> = {};
+  if (config.apiKey) {
+    const value = process.env[config.apiKey];
+    if (value) {
+      secrets[config.apiKey] = value;
+    }
+  }
+  return secrets;
 }
 
 function resolveOpencodeConfig(
@@ -141,6 +165,7 @@ function buildOpencodeDefaultMounts(projectRoot: string): VolumeMount[] {
 function buildVolumeMounts(
   group: RegisteredGroup,
   isMain: boolean,
+  credentialStrategy: CredentialStrategy,
 ): VolumeMount[] {
   const mounts: VolumeMount[] = [];
   const projectRoot = process.cwd();
@@ -159,8 +184,11 @@ function buildVolumeMounts(
       readonly: true,
     });
 
-    // Shadow .env so the agent cannot read secrets from the mounted project root.
-    // Credentials are injected by the OneCLI gateway, never exposed to containers.
+    // Shadow .env so the agent cannot read raw secrets from the mounted project root.
+    // For the 'onecli' strategy, credentials are injected by the gateway and the
+    // .env must be hidden from agents. For 'direct', the host forwards only the
+    // specific provider secret via ContainerInput.secrets (not the whole .env),
+    // so shadowing is still applied to prevent leaking unrelated host secrets.
     const envFile = path.join(projectRoot, '.env');
     if (fs.existsSync(envFile)) {
       mounts.push({
@@ -291,6 +319,7 @@ function buildVolumeMounts(
 async function buildContainerArgs(
   mounts: VolumeMount[],
   containerName: string,
+  credentialStrategy: CredentialStrategy,
   agentIdentifier?: string,
 ): Promise<string[]> {
   const args: string[] = ['run', '-i', '--rm', '--name', containerName];
@@ -298,18 +327,25 @@ async function buildContainerArgs(
   // Pass host timezone so container's local time matches the user's
   args.push('-e', `TZ=${TIMEZONE}`);
 
-  // OneCLI gateway handles credential injection — containers never see real secrets.
-  // The gateway intercepts HTTPS traffic and injects API keys or OAuth tokens.
-  const onecliApplied = await onecli.applyContainerConfig(args, {
-    addHostMapping: false, // Nanoclaw already handles host gateway
-    agent: agentIdentifier,
-  });
-  if (onecliApplied) {
-    logger.info({ containerName }, 'OneCLI gateway config applied');
+  if (credentialStrategy === 'onecli') {
+    // OneCLI gateway handles credential injection — containers never see raw secrets.
+    // The gateway intercepts HTTPS traffic and injects API keys or OAuth tokens.
+    const onecliApplied = await onecli.applyContainerConfig(args, {
+      addHostMapping: false, // Nanoclaw already handles host gateway
+      agent: agentIdentifier,
+    });
+    if (onecliApplied) {
+      logger.info({ containerName }, 'OneCLI gateway config applied');
+    } else {
+      logger.warn(
+        { containerName },
+        'OneCLI gateway not reachable — container will have no credentials',
+      );
+    }
   } else {
-    logger.warn(
+    logger.info(
       { containerName },
-      'OneCLI gateway not reachable — container will have no credentials',
+      'Direct credential strategy — OneCLI gateway skipped, secrets forwarded via stdin',
     );
   }
 
@@ -370,7 +406,29 @@ export async function runContainerAgent(
     );
   }
 
-  const mounts = buildVolumeMounts(group, input.isMain);
+  // Determine credential strategy for this group (default: 'onecli' for backward compat)
+  const credentialStrategy: CredentialStrategy =
+    group.containerConfig?.credentialStrategy ?? 'onecli';
+
+  // For 'direct' strategy, gather provider secrets from the host environment
+  // and attach them to the container input so writeOpencodeConfig() can use them.
+  if (credentialStrategy === 'direct' && opencodeConfig) {
+    const gathered = gatherDirectSecrets(opencodeConfig);
+    if (Object.keys(gathered).length > 0) {
+      input = { ...input, secrets: { ...input.secrets, ...gathered } };
+      logger.debug(
+        { group: group.name, keys: Object.keys(gathered) },
+        'Forwarding direct provider secrets to container',
+      );
+    } else if (opencodeConfig.apiKey) {
+      logger.warn(
+        { group: group.name, apiKey: opencodeConfig.apiKey },
+        'Direct credential strategy: apiKey env var not found in host environment',
+      );
+    }
+  }
+
+  const mounts = buildVolumeMounts(group, input.isMain, credentialStrategy);
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
   // Main group uses the default OneCLI agent; others use their own agent.
@@ -380,6 +438,7 @@ export async function runContainerAgent(
   const containerArgs = await buildContainerArgs(
     mounts,
     containerName,
+    credentialStrategy,
     agentIdentifier,
   );
 
@@ -387,6 +446,7 @@ export async function runContainerAgent(
     {
       group: group.name,
       containerName,
+      credentialStrategy,
       mounts: mounts.map(
         (m) =>
           `${m.hostPath} -> ${m.containerPath}${m.readonly ? ' (ro)' : ''}`,
