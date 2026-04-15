@@ -36,5 +36,17 @@ groups/global/*
 .nanoclaw/
 
 agents-sdk-docs
+tests/e2e-output/
+
+# Local search/index caches
+.grepai/
+.serena/
+<<<<<<< HEAD
 
 tests/e2e-output/
+=======
+ 
+# Local search/index caches
+.grepai/
+.serena/
+>>>>>>> custom/fork-governance

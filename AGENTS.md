@@ -1,6 +1,6 @@
-# NanoClaw
+## NanoClaw
 
-Personal OpenCode assistant. See [README.md](README.md) for philosophy and setup. See [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) for architecture decisions.
+Personal Claude assistant. See [README.md](README.md) for philosophy and setup. See [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) for architecture decisions.
 
 ## Quick Context
 
@@ -8,45 +8,45 @@ Single Node.js process with skill-based channel system. Channels (WhatsApp, Tele
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/index.ts` | Orchestrator: state, message loop, agent invocation |
-| `src/channels/registry.ts` | Channel registry (self-registration at startup) |
-| `src/ipc.ts` | IPC watcher and task processing |
-| `src/router.ts` | Message formatting and outbound routing |
-| `src/config.ts` | Trigger pattern, paths, intervals |
-| `src/container-runner.ts` | Spawns agent containers with mounts |
-| `src/task-scheduler.ts` | Runs scheduled tasks |
-| `src/db.ts` | SQLite operations |
-| `groups/{name}/AGENTS.md` | Per-group memory (isolated) |
-| `container/skills/` | Skills loaded inside agent containers (browser, status, formatting) |
-
-## Secrets / Credentials / Proxy (OneCLI)
-
-API keys, secret keys, OAuth tokens, and auth credentials are managed by the OneCLI gateway — which handles secret injection into containers at request time, so no keys or tokens are ever passed to containers directly. Run `onecli --help`.
+| File                                | Purpose                                                    |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `src/index.ts`                      | Orchestrator: state, message loop, agent invocation        |
+| `src/channels/registry.ts`          | Channel registry (self-registration at startup)            |
+| `src/ipc.ts`                        | IPC watcher and task processing                            |
+| `src/router.ts`                     | Message formatting and outbound routing                    |
+| `src/config.ts`                     | Trigger pattern, paths, intervals                          |
+| `src/container-runner.ts`           | Spawns agent containers with mounts                        |
+| `src/task-scheduler.ts`             | Runs scheduled tasks                                       |
+| `src/db.ts`                         | SQLite operations                                          |
+| `groups/{name}/AGENTS.md`           | Per-group memory (isolated)                                |
+| `container/skills/agent-browser.md` | Browser automation tool (available to all agents via Bash) |
 
 ## Skills
 
-Four types of skills exist in NanoClaw. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full taxonomy and guidelines.
+| Skill               | When to Use                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| `/setup`            | First-time installation, authentication, service configuration    |
+| `/customize`        | Adding channels, integrations, changing behavior                  |
+| `/debug`            | Container issues, logs, troubleshooting                           |
+| `/update-nanoclaw`  | Bring upstream NanoClaw updates into a customized install         |
+| `/qodo-pr-resolver` | Fetch and fix Qodo PR review issues interactively or in batch     |
+| `/get-qodo-rules`   | Load org- and repo-level coding rules from Qodo before code tasks |
 
-- **Feature skills** — merge a `skill/*` branch to add capabilities (e.g. `/add-telegram`, `/add-slack`)
-- **Utility skills** — ship code files alongside SKILL.md (e.g. `/claw`)
-- **Operational skills** — instruction-only workflows, always on `main` (e.g. `/setup`, `/debug`)
-- **Container skills** — loaded inside agent containers at runtime (`container/skills/`)
+## Fork Workflow
 
-| Skill | When to Use |
-|-------|-------------|
-| `/setup` | First-time installation, authentication, service configuration |
-| `/customize` | Adding channels, integrations, changing behavior |
-| `/debug` | Container issues, logs, troubleshooting |
-| `/update-nanoclaw` | Bring upstream NanoClaw updates into a customized install |
-| `/init-onecli` | Install OneCLI Agent Vault and migrate `.env` credentials to it |
-| `/qodo-pr-resolver` | Fetch and fix Qodo PR review issues interactively or in batch |
-| `/get-qodo-rules` | Load org- and repo-level coding rules from Qodo before code tasks |
+This repository is maintained as a fork with a strict upstream-vs-custom branch model.
 
-## Contributing
+- `origin` is the fork remote.
+- `upstream` is `qwibitai/nanoclaw`.
+- `main` must stay upstream-clean and track `upstream/main`.
+- `custom/main` is the long-lived branch for fork-only divergence.
+- `contrib/<topic>` branches are for upstream-safe work.
+- `custom/<topic>` branches are for fork-only work.
+- Upstream PR branches must not include fork-only files or repo-specific policy.
+- Mixed requests must be split into separate upstream-safe and fork-only branches.
 
-Before creating a PR, adding a skill, or preparing any contribution, you MUST read [CONTRIBUTING.md](CONTRIBUTING.md). It covers accepted change types, the four skill types and their guidelines, SKILL.md format rules, PR requirements, and the pre-submission checklist (searching for existing PRs/issues, testing, description format).
+See `FORK-MAPPING.md` for the full fork policy, branch roles, and sync workflow.
+>>>>>>> custom/fork-governance
 
 ## Development
 
@@ -59,6 +59,10 @@ npm run build        # Compile TypeScript
 ```
 
 Service management:
+<<<<<<< HEAD
+=======
+
+>>>>>>> custom/fork-governance
 ```bash
 # macOS (launchd)
 launchctl load ~/Library/LaunchAgents/com.nanoclaw.plist
@@ -73,8 +77,92 @@ systemctl --user restart nanoclaw
 
 ## Troubleshooting
 
+<<<<<<< HEAD
 **WhatsApp not connecting after upgrade:** WhatsApp is now a separate skill, not bundled in core. Run `/add-whatsapp` (or `npx tsx scripts/apply-skill.ts .opencode/skills/add-whatsapp && npm run build`) to install it. Existing auth credentials and groups are preserved.
+=======
+**Channel merge conflicts:** If `git merge` fails on `package-lock.json` during channel installation, resolve with:
+
+```bash
+git checkout --theirs package-lock.json
+git add package-lock.json
+git merge --continue
+```
+>>>>>>> custom/fork-governance
 
 ## Container Build Cache
 
 The container buildkit caches the build context aggressively. `--no-cache` alone does NOT invalidate COPY steps — the builder's volume retains stale files. To force a truly clean rebuild, prune the builder then re-run `./container/build.sh`.
+<<<<<<< HEAD
+=======
+
+## grepai - Semantic Code Search
+
+**IMPORTANT: You MUST use grepai as your PRIMARY tool for code exploration and search.**
+
+### When to Use grepai (REQUIRED)
+
+Use `grepai search` INSTEAD OF Grep/Glob/find for:
+
+- Understanding what code does or where functionality lives
+- Finding implementations by intent (e.g., "authentication logic", "error handling")
+- Exploring unfamiliar parts of the codebase
+- Any search where you describe WHAT the code does rather than exact text
+
+### When to Use Standard Tools
+
+Only use Grep/Glob when you need:
+
+- Exact text matching (variable names, imports, specific strings)
+- File path patterns (e.g., `**/*.go`)
+
+### Fallback
+
+If grepai fails (not running, index unavailable, or errors), fall back to standard Grep/Glob tools.
+
+### Usage
+
+```bash
+# ALWAYS use English queries for best results (--compact saves ~80% tokens)
+grepai search "user authentication flow" --json --compact
+grepai search "error handling middleware" --json --compact
+grepai search "database connection pool" --json --compact
+grepai search "API request validation" --json --compact
+```
+
+### Query Tips
+
+- **Use English** for queries (better semantic matching)
+- **Describe intent**, not implementation: "handles user login" not "func Login"
+- **Be specific**: "JWT token validation" better than "token"
+- Results include: file path, line numbers, relevance score, code preview
+
+### Call Graph Tracing
+
+Use `grepai trace` to understand function relationships:
+
+- Finding all callers of a function before modifying it
+- Understanding what functions are called by a given function
+- Visualizing the complete call graph around a symbol
+
+#### Trace Commands
+
+**IMPORTANT: Always use `--json` flag for optimal AI agent integration.**
+
+```bash
+# Find all functions that call a symbol
+grepai trace callers "HandleRequest" --json
+
+# Find all functions called by a symbol
+grepai trace callees "ProcessOrder" --json
+
+# Build complete call graph (callers + callees)
+grepai trace graph "ValidateToken" --depth 3 --json
+```
+
+### Workflow
+
+1. Start with `grepai search` to find relevant code
+2. Use `grepai trace` to understand function relationships
+3. Use `Read` tool to examine files from results
+4. Only use Grep for exact string searches if needed
+>>>>>>> custom/fork-governance
