@@ -6,7 +6,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 
 import { logger } from '../src/logger.js';
-import { commandExists } from './platform.js';
+import { commandExists, isNativeWindows } from './platform.js';
 import { emitStatus } from './status.js';
 
 function parseArgs(args: string[]): { runtime: string } {
@@ -37,6 +37,20 @@ export async function run(args: string[]): Promise<void> {
       LOG: 'logs/setup.log',
     });
     process.exit(4);
+  }
+
+  if (isNativeWindows()) {
+    emitStatus('SETUP_CONTAINER', {
+      RUNTIME: runtime,
+      IMAGE: image,
+      BUILD_OK: false,
+      TEST_OK: false,
+      STATUS: 'failed',
+      ERROR: 'native_windows_not_supported',
+      GUIDANCE: 'use_wsl2_or_linux',
+      LOG: 'logs/setup.log',
+    });
+    process.exit(2);
   }
 
   // Validate runtime availability

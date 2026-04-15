@@ -15,6 +15,7 @@ import {
   getNodePath,
   getServiceManager,
   hasSystemd,
+  isNativeWindows,
   isRoot,
   isWSL,
 } from './platform.js';
@@ -27,6 +28,19 @@ export async function run(_args: string[]): Promise<void> {
   const homeDir = os.homedir();
 
   logger.info({ platform, nodePath, projectRoot }, 'Setting up service');
+
+  if (isNativeWindows()) {
+    emitStatus('SETUP_SERVICE', {
+      SERVICE_TYPE: 'unknown',
+      NODE_PATH: nodePath,
+      PROJECT_PATH: projectRoot,
+      STATUS: 'failed',
+      ERROR: 'native_windows_not_supported',
+      GUIDANCE: 'use_wsl2_or_linux',
+      LOG: 'logs/setup.log',
+    });
+    process.exit(2);
+  }
 
   // Build first
   logger.info('Building TypeScript');
