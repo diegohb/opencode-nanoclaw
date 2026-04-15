@@ -27,7 +27,7 @@ import {
 } from './container-runtime.js';
 import { OneCLI } from '@onecli-sh/sdk';
 import { validateAdditionalMounts } from './mount-security.js';
-import { RegisteredGroup } from './types.js';
+import { OpencodeConfig, RegisteredGroup } from './types.js';
 
 const onecli = new OneCLI({ url: ONECLI_URL });
 
@@ -45,7 +45,7 @@ export interface ContainerInput {
   assistantName?: string;
   script?: string;
   /** Runtime config forwarded to the container's opencode runner. */
-  opencodeConfig?: { model?: string; small_model?: string };
+  opencodeConfig?: OpencodeConfig;
 }
 
 export interface ContainerOutput {
@@ -60,6 +60,12 @@ interface VolumeMount {
   containerPath: string;
   readonly: boolean;
 }
+
+const OPENCODE_DEFAULTS_DIR = '/workspace/opencode-defaults';
+const OPENCODE_DEFAULT_MOUNTS = [
+  { source: 'opencode.json', target: 'opencode.json' },
+  { source: 'skills', target: 'skills' },
+];
 
 /**
  * Read model and small_model from the host's OpenCode global config.
@@ -83,6 +89,55 @@ function readHostOpencodeModel(): { model?: string; small_model?: string } | nul
   }
 }
 
+function resolveOpencodeConfig(
+  group: RegisteredGroup,
+  input: ContainerInput,
+): { config?: OpencodeConfig; usedHostModelDefaults: boolean } {
+  const config: OpencodeConfig = {
+    ...group.containerConfig?.opencodeConfig,
+    ...input.opencodeConfig,
+  };
+
+  let usedHostModelDefaults = false;
+  if (!config.model && !config.small_model) {
+    const hostModel = readHostOpencodeModel();
+    if (hostModel) {
+      config.model = hostModel.model;
+      config.small_model = hostModel.small_model;
+      usedHostModelDefaults = Boolean(hostModel.model || hostModel.small_model);
+    }
+  }
+
+  if (
+    !config.provider &&
+    !config.apiKey &&
+    !config.model &&
+    !config.small_model
+  ) {
+    return { config: undefined, usedHostModelDefaults };
+  }
+
+  return { config, usedHostModelDefaults };
+}
+
+function buildOpencodeDefaultMounts(projectRoot: string): VolumeMount[] {
+  const opencodeDefaultsDir = path.join(projectRoot, '.opencode');
+  if (!fs.existsSync(opencodeDefaultsDir)) return [];
+
+  return OPENCODE_DEFAULT_MOUNTS.flatMap(({ source, target }) => {
+    const hostPath = path.join(opencodeDefaultsDir, source);
+    if (!fs.existsSync(hostPath)) return [];
+
+    return [
+      {
+        hostPath,
+        containerPath: `${OPENCODE_DEFAULTS_DIR}/${target}`,
+        readonly: true,
+      },
+    ];
+  });
+}
+
 function buildVolumeMounts(
   group: RegisteredGroup,
   isMain: boolean,
@@ -90,6 +145,7 @@ function buildVolumeMounts(
   const mounts: VolumeMount[] = [];
   const projectRoot = process.cwd();
   const groupDir = resolveGroupFolderPath(group.folder);
+  mounts.push(...buildOpencodeDefaultMounts(projectRoot));
 
   if (isMain) {
     // Main gets the project root read-only. Writable paths the agent needs
@@ -294,19 +350,24 @@ export async function runContainerAgent(
   const groupDir = resolveGroupFolderPath(group.folder);
   fs.mkdirSync(groupDir, { recursive: true });
 
-  // Augment input with model from host's OpenCode global config when the caller
-  // has not already specified one.  Only model/small_model are forwarded —
-  // credentials and plugins that require the host environment are intentionally
-  // excluded.  Provider auth is handled by the OneCLI gateway at runtime.
-  if (!input.opencodeConfig?.model) {
-    const hostModel = readHostOpencodeModel();
-    if (hostModel) {
-      input = {
-        ...input,
-        opencodeConfig: { ...input.opencodeConfig, model: hostModel.model, small_model: hostModel.small_model },
-      };
-      logger.debug({ model: hostModel.model }, 'Forwarding model from host OpenCode config');
-    }
+  const { config: opencodeConfig, usedHostModelDefaults } = resolveOpencodeConfig(
+    group,
+    input,
+  );
+  if (opencodeConfig) {
+    input = {
+      ...input,
+      opencodeConfig,
+    };
+  }
+  if (usedHostModelDefaults) {
+    logger.debug(
+      {
+        model: opencodeConfig?.model,
+        small_model: opencodeConfig?.small_model,
+      },
+      'Forwarding model defaults from host OpenCode config',
+    );
   }
 
   const mounts = buildVolumeMounts(group, input.isMain);
