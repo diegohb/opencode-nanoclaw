@@ -27,14 +27,17 @@ export interface AllowedRoot {
   description?: string;
 }
 
+export interface OpencodeConfig {
+  provider?: string; // default: 'opencode'
+  apiKey?: string; // env var name (optional for free providers)
+  model?: string; // default: 'opencode/kimi-k2.5-free'
+  small_model?: string;
+}
+
 export interface ContainerConfig {
   additionalMounts?: AdditionalMount[];
   timeout?: number; // Default: 300000 (5 minutes)
-  opencodeConfig?: {
-    provider?: string; // default: 'opencode'
-    apiKey?: string; // env var name (optional for free providers)
-    model?: string; // default: 'opencode/kimi-k2.5-free'
-  };
+  opencodeConfig?: OpencodeConfig;
 }
 
 export interface RegisteredGroup {

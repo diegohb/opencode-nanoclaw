@@ -107,6 +107,7 @@ vi.mock('child_process', async () => {
 
 import { runContainerAgent, ContainerOutput } from './container-runner.js';
 import type { RegisteredGroup } from './types.js';
+import fs from 'fs';
 
 const testGroup: RegisteredGroup = {
   name: 'Test Group',
@@ -225,5 +226,91 @@ describe('container-runner timeout behavior', () => {
     const result = await resultPromise;
     expect(result.status).toBe('success');
     expect(result.newSessionId).toBe('session-456');
+  });
+
+  it('merges group OpenCode config into container input', async () => {
+    const inputChunks: string[] = [];
+    fakeProc.stdin.on('data', (chunk) => {
+      inputChunks.push(chunk.toString());
+    });
+
+    const resultPromise = runContainerAgent(
+      {
+        ...testGroup,
+        containerConfig: {
+          opencodeConfig: {
+            provider: 'opencode',
+            apiKey: 'OPENCODE_API_KEY',
+            model: 'opencode/custom-model',
+          },
+        },
+      },
+      testInput,
+      () => {},
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+
+    await resultPromise;
+
+    expect(JSON.parse(inputChunks.join(''))).toMatchObject({
+      opencodeConfig: {
+        provider: 'opencode',
+        apiKey: 'OPENCODE_API_KEY',
+        model: 'opencode/custom-model',
+      },
+    });
+  });
+
+  it('uses host OpenCode model defaults when group config omits models', async () => {
+    const existsSync = vi.mocked(fs.existsSync);
+    const readFileSync = vi.mocked(fs.readFileSync);
+    existsSync.mockImplementation((path) =>
+      String(path).includes('.config') || String(path).includes('/logs'),
+    );
+    readFileSync.mockImplementation((path) => {
+      if (String(path).includes('.config')) {
+        return '{"model":"opencode/primary","small_model":"opencode/small"}';
+      }
+      return '';
+    });
+
+    const inputChunks: string[] = [];
+    fakeProc.stdin.on('data', (chunk) => {
+      inputChunks.push(chunk.toString());
+    });
+
+    const resultPromise = runContainerAgent(
+      {
+        ...testGroup,
+        containerConfig: {
+          opencodeConfig: {
+            provider: 'opencode',
+            apiKey: 'OPENCODE_API_KEY',
+          },
+        },
+      },
+      testInput,
+      () => {},
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+
+    await resultPromise;
+
+    expect(JSON.parse(inputChunks.join(''))).toMatchObject({
+      opencodeConfig: {
+        provider: 'opencode',
+        apiKey: 'OPENCODE_API_KEY',
+        model: 'opencode/primary',
+        small_model: 'opencode/small',
+      },
+    });
   });
 });

@@ -21,6 +21,7 @@ interface ContainerInput {
     provider?: string;
     apiKey?: string;
     model?: string;
+    small_model?: string;
   };
 }
 
@@ -129,6 +130,7 @@ function writeOpencodeConfig(containerInput: ContainerInput): void {
   // Only override model when explicitly requested — otherwise global OpenCode
   // config (e.g. ~/.config/opencode/config.json) picks the model.
   const model = oc?.model ?? null;
+  const smallModel = oc?.small_model ?? null;
 
   // Only set provider block when an explicit apiKey is forwarded.
   const apiKey =
@@ -143,6 +145,7 @@ function writeOpencodeConfig(containerInput: ContainerInput): void {
   const config: Record<string, unknown> = {
     $schema: 'https://opencode.ai/config.json',
     ...(model ? { model } : {}),
+    ...(smallModel ? { small_model: smallModel } : {}),
     permission: {
       edit: 'allow',
       bash: 'allow',
