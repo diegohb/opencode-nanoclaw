@@ -4,10 +4,15 @@
  * the Bot Framework SDK and HTTP server. This class just provides config
  * and self-registers via the channel registry.
  */
+import path from 'path';
+
+import { DATA_DIR } from '../config.js';
 import { SidecarChannel, SidecarConfig } from '../sidecar-channel.js';
 import { registerChannel, ChannelOpts } from './registry.js';
 import { readEnvFile } from '../env.js';
 import { logger } from '../logger.js';
+
+const TEAMS_DATA_DIR = path.join(DATA_DIR, 'msteams');
 
 const TEAMS_SIDECAR_CONFIG: SidecarConfig = {
   name: 'msteams',
@@ -16,6 +21,12 @@ const TEAMS_SIDECAR_CONFIG: SidecarConfig = {
   sidecarPort: 3978,
   hostPort: parseInt(readEnvFile(['TEAMS_PORT']).TEAMS_PORT || '3978', 10),
   envVars: ['TEAMS_APP_ID', 'TEAMS_APP_SECRET'],
+  writableMounts: [
+    {
+      hostPath: TEAMS_DATA_DIR,
+      containerPath: '/data',
+    },
+  ],
 };
 
 class TeamsChannel extends SidecarChannel {
