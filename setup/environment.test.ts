@@ -3,6 +3,8 @@ import fs from 'fs';
 
 import Database from 'better-sqlite3';
 
+import { hasConfiguredCredentials } from './credentials.js';
+
 /**
  * Tests for the environment check step.
  *
@@ -13,7 +15,7 @@ describe('environment detection', () => {
   it('detects platform correctly', async () => {
     const { getPlatform } = await import('./platform.js');
     const platform = getPlatform();
-    expect(['macos', 'linux', 'unknown']).toContain(platform);
+    expect(['macos', 'linux', 'windows', 'unknown']).toContain(platform);
   });
 });
 
@@ -76,23 +78,22 @@ describe('credentials detection', () => {
   it('detects ANTHROPIC_API_KEY in env content', () => {
     const content =
       'SOME_KEY=value\nANTHROPIC_API_KEY=sk-ant-test123\nOTHER=foo';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
-    expect(hasCredentials).toBe(true);
+    expect(hasConfiguredCredentials(content)).toBe(true);
   });
 
   it('detects CLAUDE_CODE_OAUTH_TOKEN in env content', () => {
     const content = 'CLAUDE_CODE_OAUTH_TOKEN=token123';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
-    expect(hasCredentials).toBe(true);
+    expect(hasConfiguredCredentials(content)).toBe(true);
+  });
+
+  it('does not treat ONECLI_URL as a credential by itself', () => {
+    const content = 'ONECLI_URL=http://localhost:10254';
+    expect(hasConfiguredCredentials(content)).toBe(false);
   });
 
   it('returns false when no credentials', () => {
     const content = 'ASSISTANT_NAME="Andy"\nOTHER=foo';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
-    expect(hasCredentials).toBe(false);
+    expect(hasConfiguredCredentials(content)).toBe(false);
   });
 });
 

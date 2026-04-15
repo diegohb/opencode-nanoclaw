@@ -20,6 +20,7 @@ import {
   hasSystemd,
   isRoot,
 } from './platform.js';
+import { hasConfiguredCredentials } from './credentials.js';
 import { emitStatus } from './status.js';
 
 export async function run(_args: string[]): Promise<void> {
@@ -101,7 +102,7 @@ export async function run(_args: string[]): Promise<void> {
   const envFile = path.join(projectRoot, '.env');
   if (fs.existsSync(envFile)) {
     const envContent = fs.readFileSync(envFile, 'utf-8');
-    if (/^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY|ONECLI_URL)=/m.test(envContent)) {
+    if (hasConfiguredCredentials(envContent)) {
       credentials = 'configured';
     }
   }

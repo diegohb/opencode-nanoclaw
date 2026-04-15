@@ -25,7 +25,7 @@ vi.mock('http', () => ({
 }));
 
 vi.mock('./env.js', () => ({
-  readEnvFile: (...args: unknown[]) => mockReadEnvFile(...args),
+  readEnvFile: mockReadEnvFile,
 }));
 
 vi.mock('./logger.js', () => ({
