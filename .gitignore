@@ -41,12 +41,3 @@ tests/e2e-output/
 # Local search/index caches
 .grepai/
 .serena/
-<<<<<<< HEAD
-
-tests/e2e-output/
-=======
- 
-# Local search/index caches
-.grepai/
-.serena/
->>>>>>> custom/fork-governance

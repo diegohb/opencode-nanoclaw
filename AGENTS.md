@@ -46,7 +46,6 @@ This repository is maintained as a fork with a strict upstream-vs-custom branch 
 - Mixed requests must be split into separate upstream-safe and fork-only branches.
 
 See `FORK-MAPPING.md` for the full fork policy, branch roles, and sync workflow.
->>>>>>> custom/fork-governance
 
 ## Development
 
@@ -59,10 +58,6 @@ npm run build        # Compile TypeScript
 ```
 
 Service management:
-<<<<<<< HEAD
-=======
-
->>>>>>> custom/fork-governance
 ```bash
 # macOS (launchd)
 launchctl load ~/Library/LaunchAgents/com.nanoclaw.plist
@@ -77,9 +72,8 @@ systemctl --user restart nanoclaw
 
 ## Troubleshooting
 
-<<<<<<< HEAD
-**WhatsApp not connecting after upgrade:** WhatsApp is now a separate skill, not bundled in core. Run `/add-whatsapp` (or `npx tsx scripts/apply-skill.ts .opencode/skills/add-whatsapp && npm run build`) to install it. Existing auth credentials and groups are preserved.
-=======
+**WhatsApp not connecting after upgrade:** WhatsApp is now a separate skill, not bundled in core. Run `/add-whatsapp` to install it. Existing auth credentials and groups are preserved.
+
 **Channel merge conflicts:** If `git merge` fails on `package-lock.json` during channel installation, resolve with:
 
 ```bash
@@ -87,13 +81,10 @@ git checkout --theirs package-lock.json
 git add package-lock.json
 git merge --continue
 ```
->>>>>>> custom/fork-governance
 
 ## Container Build Cache
 
 The container buildkit caches the build context aggressively. `--no-cache` alone does NOT invalidate COPY steps — the builder's volume retains stale files. To force a truly clean rebuild, prune the builder then re-run `./container/build.sh`.
-<<<<<<< HEAD
-=======
 
 ## grepai - Semantic Code Search
 
@@ -165,4 +156,3 @@ grepai trace graph "ValidateToken" --depth 3 --json
 2. Use `grepai trace` to understand function relationships
 3. Use `Read` tool to examine files from results
 4. Only use Grep for exact string searches if needed
->>>>>>> custom/fork-governance
