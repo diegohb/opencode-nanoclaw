@@ -7,6 +7,18 @@ afterEach(() => {
 });
 
 describe('platform windows behavior', () => {
+  it('reports Windows as a first-class platform', async () => {
+    vi.doMock('os', () => ({
+      default: {
+        platform: () => 'win32',
+      },
+    }));
+
+    const { getPlatform } = await import('./platform.js');
+
+    expect(getPlatform()).toBe('windows');
+  });
+
   it('uses where.exe to resolve node on Windows', async () => {
     const execSync = vi.fn(() => 'C:\\Program Files\\nodejs\\node.exe\r\n');
 
