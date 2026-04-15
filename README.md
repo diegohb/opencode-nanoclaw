@@ -72,7 +72,7 @@ Then run `/setup`. The OpenCode session handles dependencies, authentication, co
 - **Scheduled tasks** - Recurring jobs that run OpenCode and can message you back
 - **Web access** - Search and fetch content from the Web
 - **Container isolation** - Agents are sandboxed in Docker (macOS/Linux), [Docker Sandboxes](docs/docker-sandboxes.md) (micro VM isolation), or Apple Container (macOS)
-- **Credential security** - Agents never hold raw API keys. Outbound requests route through [OneCLI's Agent Vault](https://github.com/onecli/onecli), which injects credentials at request time and enforces per-agent policies and rate limits.
+- **Credential security** - Two supported strategies: **direct auth** (provider API keys are read from the host environment and forwarded only to the specific container that needs them, not stored in containers) and **OneCLI gateway** (optional; intercepts outbound HTTPS and injects credentials at the proxy level, supporting per-agent policies and rate limits). See [Security](docs/SECURITY.md) for the tradeoffs.
 - **Agent Swarms** - Spin up teams of specialized agents that collaborate on complex tasks
 - **Optional integrations** - Add Gmail (`/add-gmail`) and more via skills
 
@@ -161,7 +161,7 @@ Yes. Docker is the default runtime and works on macOS, Linux, and Windows (via W
 
 **Is this secure?**
 
-Agents run in containers, not behind application-level permission checks. They can only access explicitly mounted directories. Credentials never enter the container — outbound API requests route through [OneCLI's Agent Vault](https://github.com/onecli/onecli), which injects authentication at the proxy level and supports rate limits and access policies. You should still review what you're running, but the codebase is small enough that you actually can. See the [security documentation](https://docs.nanoclaw.dev/concepts/security) for the full security model.
+Agents run in containers, not behind application-level permission checks. They can only access explicitly mounted directories. NanoClaw supports two credential models: **direct auth**, where only the specific provider API key needed by a group is forwarded to its container via stdin (never stored on the filesystem inside the container); and **OneCLI gateway** (optional), which proxies outbound HTTPS and injects credentials at the network layer without the container ever seeing a raw key. You should still review what you're running, but the codebase is small enough that you actually can. See the [security documentation](docs/SECURITY.md) for the full security model.
 
 **Why no configuration files?**
 

@@ -29,15 +29,38 @@ export interface AllowedRoot {
 
 export interface OpencodeConfig {
   provider?: string; // default: 'opencode'
-  apiKey?: string; // env var name (optional for free providers)
+  /**
+   * Name of the environment variable (on the host) whose value holds the
+   * provider API key. Used as the lookup key into `ContainerInput.secrets`
+   * on the container side. Example: 'ANTHROPIC_API_KEY'.
+   */
+  apiKey?: string;
   model?: string; // default: 'opencode/kimi-k2.5-free'
   small_model?: string;
 }
+
+/**
+ * Controls how the agent container receives provider credentials.
+ *
+ * - `'direct'`: The host resolves credentials from the environment and
+ *   forwards them as `ContainerInput.secrets`. The OneCLI gateway is
+ *   NOT used for credential injection.
+ * - `'onecli'`: The OneCLI gateway intercepts container HTTPS traffic and
+ *   injects tokens. `ContainerInput.secrets` is not populated by the host.
+ *
+ * Defaults to `'onecli'` when not set, preserving backward compatibility.
+ */
+export type CredentialStrategy = 'direct' | 'onecli';
 
 export interface ContainerConfig {
   additionalMounts?: AdditionalMount[];
   timeout?: number; // Default: 300000 (5 minutes)
   opencodeConfig?: OpencodeConfig;
+  /**
+   * Credential injection strategy for this group's containers.
+   * Defaults to 'onecli' when omitted.
+   */
+  credentialStrategy?: CredentialStrategy;
 }
 
 export interface RegisteredGroup {

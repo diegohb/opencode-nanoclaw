@@ -3,6 +3,8 @@ import fs from 'fs';
 
 import Database from 'better-sqlite3';
 
+import { hasConfiguredCredentials, hasDirectProviderCredentials, hasOneCLIConfig } from './credentials.js';
+
 /**
  * Tests for the environment check step.
  *
@@ -13,7 +15,7 @@ describe('environment detection', () => {
   it('detects platform correctly', async () => {
     const { getPlatform } = await import('./platform.js');
     const platform = getPlatform();
-    expect(['macos', 'linux', 'unknown']).toContain(platform);
+    expect(['macos', 'linux', 'windows', 'unknown']).toContain(platform);
   });
 });
 
@@ -76,23 +78,58 @@ describe('credentials detection', () => {
   it('detects ANTHROPIC_API_KEY in env content', () => {
     const content =
       'SOME_KEY=value\nANTHROPIC_API_KEY=sk-ant-test123\nOTHER=foo';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
-    expect(hasCredentials).toBe(true);
+    expect(hasConfiguredCredentials(content)).toBe(true);
   });
 
   it('detects CLAUDE_CODE_OAUTH_TOKEN in env content', () => {
     const content = 'CLAUDE_CODE_OAUTH_TOKEN=token123';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
-    expect(hasCredentials).toBe(true);
+    expect(hasConfiguredCredentials(content)).toBe(true);
+  });
+
+  it('does not treat ONECLI_URL as a credential by itself', () => {
+    const content = 'ONECLI_URL=http://localhost:10254';
+    expect(hasConfiguredCredentials(content)).toBe(false);
   });
 
   it('returns false when no credentials', () => {
     const content = 'ASSISTANT_NAME="Andy"\nOTHER=foo';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
-    expect(hasCredentials).toBe(false);
+    expect(hasConfiguredCredentials(content)).toBe(false);
+  });
+});
+
+describe('direct provider credentials detection', () => {
+  it('detects ANTHROPIC_API_KEY as direct credential', () => {
+    expect(hasDirectProviderCredentials('ANTHROPIC_API_KEY=sk-ant-test')).toBe(true);
+  });
+
+  it('detects OPENAI_API_KEY as direct credential', () => {
+    expect(hasDirectProviderCredentials('OPENAI_API_KEY=sk-openai-test')).toBe(true);
+  });
+
+  it('detects OPENROUTER_API_KEY as direct credential', () => {
+    expect(hasDirectProviderCredentials('OPENROUTER_API_KEY=or-test')).toBe(true);
+  });
+
+  it('detects CLAUDE_CODE_OAUTH_TOKEN as direct credential', () => {
+    expect(hasDirectProviderCredentials('CLAUDE_CODE_OAUTH_TOKEN=tok')).toBe(true);
+  });
+
+  it('returns false when only ONECLI_URL is set', () => {
+    expect(hasDirectProviderCredentials('ONECLI_URL=http://localhost:10254')).toBe(false);
+  });
+
+  it('returns false for empty content', () => {
+    expect(hasDirectProviderCredentials('')).toBe(false);
+  });
+});
+
+describe('OneCLI config detection', () => {
+  it('detects ONECLI_URL in env content', () => {
+    expect(hasOneCLIConfig('ONECLI_URL=http://localhost:10254')).toBe(true);
+  });
+
+  it('returns false when ONECLI_URL is absent', () => {
+    expect(hasOneCLIConfig('ANTHROPIC_API_KEY=sk-ant-test')).toBe(false);
   });
 });
 

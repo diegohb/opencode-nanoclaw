@@ -25,7 +25,7 @@ vi.mock('http', () => ({
 }));
 
 vi.mock('./env.js', () => ({
-  readEnvFile: (...args: unknown[]) => mockReadEnvFile(...args),
+  readEnvFile: mockReadEnvFile,
 }));
 
 vi.mock('./logger.js', () => ({
@@ -72,7 +72,9 @@ class TestSidecarChannel extends SidecarChannel {
 
 function createRequest(responseBody: string) {
   return (options: unknown, callback: (response: EventEmitter) => void) => {
-    const response = new EventEmitter() as EventEmitter & { statusCode?: number };
+    const response = new EventEmitter() as EventEmitter & {
+      statusCode?: number;
+    };
     response.statusCode = 200;
 
     const request = new EventEmitter() as EventEmitter & {

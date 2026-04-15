@@ -20,6 +20,7 @@ import {
   hasSystemd,
   isRoot,
 } from './platform.js';
+import { hasConfiguredCredentials, hasDirectProviderCredentials, hasOneCLIConfig } from './credentials.js';
 import { emitStatus } from './status.js';
 
 export async function run(_args: string[]): Promise<void> {
@@ -98,11 +99,19 @@ export async function run(_args: string[]): Promise<void> {
 
   // 3. Check credentials
   let credentials = 'missing';
+  let directCredentials = 'missing';
+  let onecliConfig = 'missing';
   const envFile = path.join(projectRoot, '.env');
   if (fs.existsSync(envFile)) {
     const envContent = fs.readFileSync(envFile, 'utf-8');
-    if (/^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY|ONECLI_URL)=/m.test(envContent)) {
+    if (hasConfiguredCredentials(envContent)) {
       credentials = 'configured';
+    }
+    if (hasDirectProviderCredentials(envContent)) {
+      directCredentials = 'configured';
+    }
+    if (hasOneCLIConfig(envContent)) {
+      onecliConfig = 'configured';
     }
   }
 
@@ -165,10 +174,13 @@ export async function run(_args: string[]): Promise<void> {
     mountAllowlist = 'configured';
   }
 
-  // Determine overall status
+  // Determine overall status.
+  // At least one credential path must be ready: direct provider keys OR OneCLI config.
+  const anyCredentialReady =
+    directCredentials === 'configured' || onecliConfig === 'configured';
   const status =
     service === 'running' &&
-    credentials !== 'missing' &&
+    anyCredentialReady &&
     anyChannelConfigured &&
     registeredGroups > 0
       ? 'success'
@@ -180,6 +192,8 @@ export async function run(_args: string[]): Promise<void> {
     SERVICE: service,
     CONTAINER_RUNTIME: containerRuntime,
     CREDENTIALS: credentials,
+    DIRECT_CREDENTIALS: directCredentials,
+    ONECLI_CONFIG: onecliConfig,
     CONFIGURED_CHANNELS: configuredChannels.join(','),
     CHANNEL_AUTH: JSON.stringify(channelAuth),
     REGISTERED_GROUPS: registeredGroups,

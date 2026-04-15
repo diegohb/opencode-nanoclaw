@@ -7,6 +7,11 @@ import { spawn } from 'child_process';
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
 const OUTPUT_END_MARKER = '---NANOCLAW_OUTPUT_END---';
 
+// Hoisted spy so the OneCLI mock can reference it before variable declarations
+const { mockApplyContainerConfig } = vi.hoisted(() => ({
+  mockApplyContainerConfig: vi.fn().mockResolvedValue(true),
+}));
+
 // Mock config
 vi.mock('./config.js', () => ({
   CONTAINER_IMAGE: 'nanoclaw-agent:latest',
@@ -60,10 +65,10 @@ vi.mock('./container-runtime.js', () => ({
   stopContainer: vi.fn(),
 }));
 
-// Mock OneCLI SDK
+// Mock OneCLI SDK — use hoisted shared spy so call count is trackable across tests
 vi.mock('@onecli-sh/sdk', () => ({
   OneCLI: class {
-    applyContainerConfig = vi.fn().mockResolvedValue(true);
+    applyContainerConfig = mockApplyContainerConfig;
     createAgent = vi.fn().mockResolvedValue({ id: 'test' });
     ensureAgent = vi
       .fn()
@@ -109,6 +114,7 @@ vi.mock('child_process', async () => {
 import { runContainerAgent, ContainerOutput } from './container-runner.js';
 import type { RegisteredGroup } from './types.js';
 import fs from 'fs';
+import { logger } from './logger.js';
 
 const testGroup: RegisteredGroup = {
   name: 'Test Group',
@@ -269,8 +275,9 @@ describe('container-runner timeout behavior', () => {
   it('uses host OpenCode model defaults when group config omits models', async () => {
     const existsSync = vi.mocked(fs.existsSync);
     const readFileSync = vi.mocked(fs.readFileSync);
-    existsSync.mockImplementation((path) =>
-      String(path).includes('.config') || String(path).includes('/logs'),
+    existsSync.mockImplementation(
+      (path) =>
+        String(path).includes('.config') || String(path).includes('/logs'),
     );
     readFileSync.mockImplementation((path) => {
       if (String(path).includes('.config')) {
@@ -317,8 +324,9 @@ describe('container-runner timeout behavior', () => {
 
   it('mounts only runtime-adjacent OpenCode defaults into the container', async () => {
     const existsSync = vi.mocked(fs.existsSync);
-    existsSync.mockImplementation((path) =>
-      String(path).includes('.opencode') || String(path).includes('/logs'),
+    existsSync.mockImplementation(
+      (path) =>
+        String(path).includes('.opencode') || String(path).includes('/logs'),
     );
 
     const resultPromise = runContainerAgent(testGroup, testInput, () => {});
@@ -338,12 +346,166 @@ describe('container-runner timeout behavior', () => {
       ),
     ).toBe(true);
     expect(
-      containerArgs.some((arg) => arg.includes('/workspace/opencode-defaults/skills')),
+      containerArgs.some((arg) =>
+        arg.includes('/workspace/opencode-defaults/skills'),
+      ),
     ).toBe(true);
     expect(containerArgs.some((arg) => arg.includes('package.json'))).toBe(
       false,
     );
     expect(containerArgs.some((arg) => arg.includes('bun.lock'))).toBe(false);
-    expect(containerArgs.some((arg) => arg.includes('node_modules'))).toBe(false);
+    expect(containerArgs.some((arg) => arg.includes('node_modules'))).toBe(
+      false,
+    );
+  });
+});
+
+describe('container-runner credential strategy', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fakeProc = createFakeProcess();
+    mockApplyContainerConfig.mockClear();
+    vi.mocked(logger.warn).mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  it('onecli strategy (default): calls applyContainerConfig and sends no secrets', async () => {
+    const inputChunks: string[] = [];
+    fakeProc.stdin.on('data', (chunk) => inputChunks.push(chunk.toString()));
+
+    const resultPromise = runContainerAgent(
+      {
+        ...testGroup,
+        containerConfig: {
+          // credentialStrategy omitted → defaults to 'onecli'
+          opencodeConfig: {
+            provider: 'anthropic',
+            apiKey: 'ANTHROPIC_API_KEY',
+          },
+        },
+      },
+      testInput,
+      () => {},
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    // OneCLI should have been consulted
+    expect(mockApplyContainerConfig).toHaveBeenCalled();
+
+    // No secrets should be forwarded to the container
+    const parsed = JSON.parse(inputChunks.join(''));
+    expect(parsed.secrets).toBeUndefined();
+  });
+
+  it('direct strategy: skips applyContainerConfig and forwards secret from env', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-ant-test-directvalue');
+
+    const inputChunks: string[] = [];
+    fakeProc.stdin.on('data', (chunk) => inputChunks.push(chunk.toString()));
+
+    const resultPromise = runContainerAgent(
+      {
+        ...testGroup,
+        containerConfig: {
+          credentialStrategy: 'direct',
+          opencodeConfig: {
+            provider: 'anthropic',
+            apiKey: 'ANTHROPIC_API_KEY',
+          },
+        },
+      },
+      testInput,
+      () => {},
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    // OneCLI should NOT have been called for this container
+    expect(mockApplyContainerConfig).not.toHaveBeenCalled();
+
+    // Secret should be forwarded via stdin
+    const parsed = JSON.parse(inputChunks.join(''));
+    expect(parsed.secrets).toMatchObject({
+      ANTHROPIC_API_KEY: 'sk-ant-test-directvalue',
+    });
+  });
+
+  it('direct strategy: warns when apiKey env var is absent', async () => {
+    // Ensure the env var is not set
+    delete process.env.ANTHROPIC_API_KEY;
+
+    const inputChunks: string[] = [];
+    fakeProc.stdin.on('data', (chunk) => inputChunks.push(chunk.toString()));
+
+    const resultPromise = runContainerAgent(
+      {
+        ...testGroup,
+        containerConfig: {
+          credentialStrategy: 'direct',
+          opencodeConfig: {
+            provider: 'anthropic',
+            apiKey: 'ANTHROPIC_API_KEY',
+          },
+        },
+      },
+      testInput,
+      () => {},
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    // No secrets in payload when env var is missing
+    const parsed = JSON.parse(inputChunks.join(''));
+    expect(parsed.secrets).toBeUndefined();
+
+    // A warning should have been logged
+    expect(vi.mocked(logger.warn)).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: 'ANTHROPIC_API_KEY' }),
+      expect.stringContaining('apiKey env var not found'),
+    );
+  });
+
+  it('direct strategy with no apiKey: no secrets, no OneCLI', async () => {
+    const inputChunks: string[] = [];
+    fakeProc.stdin.on('data', (chunk) => inputChunks.push(chunk.toString()));
+
+    const resultPromise = runContainerAgent(
+      {
+        ...testGroup,
+        containerConfig: {
+          credentialStrategy: 'direct',
+          opencodeConfig: {
+            provider: 'opencode',
+            model: 'opencode/kimi-k2.5-free',
+          },
+        },
+      },
+      testInput,
+      () => {},
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    expect(mockApplyContainerConfig).not.toHaveBeenCalled();
+
+    const parsed = JSON.parse(inputChunks.join(''));
+    expect(parsed.secrets).toBeUndefined();
   });
 });

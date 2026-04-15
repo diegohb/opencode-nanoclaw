@@ -64,9 +64,25 @@ Messages and task operations are verified against group identity:
 | View all tasks | ✓ | Own only |
 | Manage other groups | ✓ | ✗ |
 
-### 5. Credential Isolation (OneCLI Agent Vault)
+### 5. Credential Isolation
 
-Real API credentials **never enter containers**. NanoClaw uses [OneCLI's Agent Vault](https://github.com/onecli/onecli) to proxy outbound requests and inject credentials at the gateway level.
+NanoClaw supports two credential strategies. The strategy is configured per group via `containerConfig.credentialStrategy`.
+
+#### Direct Auth (default-compatible, recommended for simplicity)
+
+Provider API keys are read from the host environment at container spawn time and forwarded **only via stdin** to the specific container that needs them. The container receives the key in `ContainerInput.secrets` for use by `writeOpencodeConfig()` only — it is never written to the container filesystem, environment, or any persistent location.
+
+**Security properties:**
+1. The specific provider key (e.g. `ANTHROPIC_API_KEY`) is resolved from host env, not the whole `.env`
+2. It is forwarded once, in memory, as part of the stdin JSON payload
+3. The container process can read it from stdin, but it is not persisted beyond the OpenCode config write
+4. The `.env` file is still shadowed with `/dev/null` in the project root mount, preventing any other secrets from leaking
+
+**Tradeoff:** The provider key passes through container memory during the process lifetime. If the container is compromised, the key could be observed. If this isolation level is insufficient, use the OneCLI gateway strategy.
+
+#### OneCLI Gateway (optional, stronger isolation)
+
+When `credentialStrategy` is `'onecli'` (or omitted), NanoClaw calls `applyContainerConfig()` to route outbound HTTPS through the [OneCLI Agent Vault](https://github.com/onecli/onecli) proxy.
 
 **How it works:**
 1. Credentials are registered once with `onecli secrets create`, stored and managed by OneCLI
@@ -75,9 +91,9 @@ Real API credentials **never enter containers**. NanoClaw uses [OneCLI's Agent V
 4. Agents cannot discover real credentials — not in environment, stdin, files, or `/proc`
 
 **Per-agent policies:**
-Each NanoClaw group gets its own OneCLI agent identity. This allows different credential policies per group (e.g. your sales agent vs. support agent). OneCLI supports rate limits, and time-bound access and approval flows are on the roadmap.
+Each NanoClaw group using the OneCLI strategy gets its own OneCLI agent identity. This allows different credential policies per group (e.g. your sales agent vs. support agent). OneCLI supports rate limits, and time-bound access and approval flows are on the roadmap.
 
-**NOT Mounted:**
+**NOT Mounted (both strategies):**
 - Channel auth sessions (`store/auth/`) — host only
 - Mount allowlist — external, never mounted
 - Any credentials matching blocked patterns

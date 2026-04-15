@@ -15,10 +15,19 @@ interface ContainerInput {
   chatJid: string;
   isMain: boolean;
   isScheduledTask?: boolean;
+  /**
+   * Provider secrets forwarded by the host for the 'direct' credential
+   * strategy. Keyed by the env var name (e.g. 'ANTHROPIC_API_KEY').
+   * Empty or absent for the 'onecli' strategy.
+   */
   secrets?: Record<string, string>;
   runtime?: string;
   opencodeConfig?: {
     provider?: string;
+    /**
+     * Name of the env var / secrets key holding the provider API key.
+     * Resolved via `secrets[apiKey]` when the 'direct' strategy is active.
+     */
     apiKey?: string;
     model?: string;
     small_model?: string;

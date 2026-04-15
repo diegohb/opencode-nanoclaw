@@ -16,10 +16,7 @@ import { Channel, OnInboundMessage, OnChatMetadata } from './types.js';
 import { ChannelOpts } from './channels/registry.js';
 import { readEnvFile } from './env.js';
 import { logger } from './logger.js';
-import {
-  CONTAINER_RUNTIME_BIN,
-  hostGatewayArgs,
-} from './container-runtime.js';
+import { CONTAINER_RUNTIME_BIN, hostGatewayArgs } from './container-runtime.js';
 import { SIDECAR_INBOUND_PORT } from './config.js';
 
 /** The host address the sidecar container uses to reach NanoClaw. */

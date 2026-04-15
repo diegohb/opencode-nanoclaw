@@ -185,7 +185,10 @@ function registerGroup(jid: string, group: RegisteredGroup): void {
   }
 
   // Ensure a corresponding OneCLI agent exists (best-effort, non-blocking)
-  ensureOneCLIAgent(jid, group);
+  // Skip when the group uses direct credential strategy — no gateway agent needed.
+  if (group.containerConfig?.credentialStrategy !== 'direct') {
+    ensureOneCLIAgent(jid, group);
+  }
 
   logger.info(
     { jid, name: group.name, folder: group.folder },
