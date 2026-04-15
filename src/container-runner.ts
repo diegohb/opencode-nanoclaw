@@ -61,6 +61,8 @@ interface VolumeMount {
   readonly: boolean;
 }
 
+const OPENCODE_DEFAULTS_DIR = '/workspace/opencode-defaults';
+
 /**
  * Read model and small_model from the host's OpenCode global config.
  * Only these two fields are forwarded — credentials and plugin-specific
@@ -121,6 +123,15 @@ function buildVolumeMounts(
   const mounts: VolumeMount[] = [];
   const projectRoot = process.cwd();
   const groupDir = resolveGroupFolderPath(group.folder);
+  const opencodeDefaultsDir = path.join(projectRoot, '.opencode');
+
+  if (fs.existsSync(opencodeDefaultsDir)) {
+    mounts.push({
+      hostPath: opencodeDefaultsDir,
+      containerPath: OPENCODE_DEFAULTS_DIR,
+      readonly: true,
+    });
+  }
 
   if (isMain) {
     // Main gets the project root read-only. Writable paths the agent needs

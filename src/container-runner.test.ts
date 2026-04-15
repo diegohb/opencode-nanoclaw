@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
+import { spawn } from 'child_process';
 
 // Sentinel markers must match container-runner.ts
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
@@ -312,5 +313,27 @@ describe('container-runner timeout behavior', () => {
         small_model: 'opencode/small',
       },
     });
+  });
+
+  it('mounts repo OpenCode defaults into the container', async () => {
+    const existsSync = vi.mocked(fs.existsSync);
+    existsSync.mockImplementation((path) =>
+      String(path).includes('.opencode') || String(path).includes('/logs'),
+    );
+
+    const resultPromise = runContainerAgent(testGroup, testInput, () => {});
+
+    await vi.advanceTimersByTimeAsync(10);
+
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    const spawnCalls = vi.mocked(spawn).mock.calls;
+    const containerArgs = spawnCalls[spawnCalls.length - 1]?.[1] as string[];
+
+    expect(
+      containerArgs.some((arg) => arg.includes('/workspace/opencode-defaults')),
+    ).toBe(true);
   });
 });

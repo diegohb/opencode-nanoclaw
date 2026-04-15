@@ -38,6 +38,7 @@ const IPC_INPUT_DIR = '/workspace/ipc/input';
 const IPC_INPUT_CLOSE_SENTINEL = path.join(IPC_INPUT_DIR, '_close');
 const IPC_POLL_MS = 500;
 const PROMPT_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+const OPENCODE_DEFAULTS_CONFIG = '/workspace/opencode-defaults/opencode.json';
 
 class PromptTimeoutError extends Error {
   constructor() {
@@ -121,11 +122,44 @@ function waitForIpcMessage(): Promise<string | null> {
   });
 }
 
+function readJsonConfig(filePath: string): Record<string, unknown> | null {
+  if (!fs.existsSync(filePath)) return null;
+
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+  } catch (err) {
+    log(
+      `Failed to read config ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function mergeInstructions(base: unknown, additions: string[]): string[] {
+  const merged = new Set<string>();
+  if (Array.isArray(base)) {
+    for (const entry of base) {
+      if (typeof entry === 'string') merged.add(entry);
+    }
+  }
+  for (const entry of additions) {
+    merged.add(entry);
+  }
+  return [...merged];
+}
+
 /**
  * Write opencode.json config to the workspace.
  */
 function writeOpencodeConfig(containerInput: ContainerInput): void {
   const oc = containerInput.opencodeConfig;
+  const defaults = readJsonConfig(OPENCODE_DEFAULTS_CONFIG) ?? {};
 
   // Only override model when explicitly requested — otherwise global OpenCode
   // config (e.g. ~/.config/opencode/config.json) picks the model.
@@ -142,37 +176,57 @@ function writeOpencodeConfig(containerInput: ContainerInput): void {
   // MCP server path (compiled dist location at container runtime)
   const mcpServerPath = '/tmp/dist/ipc-mcp-stdio.js';
 
-  const config: Record<string, unknown> = {
-    $schema: 'https://opencode.ai/config.json',
-    ...(model ? { model } : {}),
-    ...(smallModel ? { small_model: smallModel } : {}),
-    permission: {
-      edit: 'allow',
-      bash: 'allow',
-      webfetch: 'allow',
-    },
-    ...(provider && apiKey
-      ? { provider: { [provider]: { options: { apiKey } } } }
-      : {}),
-    mcp: {
-      nanoclaw: {
-        type: 'local',
-        command: ['node', mcpServerPath],
-        environment: {
-          NANOCLAW_CHAT_JID: containerInput.chatJid,
-          NANOCLAW_GROUP_FOLDER: containerInput.groupFolder,
-          NANOCLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
-        },
+  const permission = {
+    ...asRecord(defaults.permission),
+    edit: 'allow',
+    bash: 'allow',
+    webfetch: 'allow',
+  };
+
+  const providerConfig = asRecord(defaults.provider);
+  if (provider && apiKey) {
+    const existingProvider = asRecord(providerConfig[provider]);
+    providerConfig[provider] = {
+      ...existingProvider,
+      options: {
+        ...asRecord(existingProvider.options),
+        apiKey,
+      },
+    };
+  }
+
+  const mcp = {
+    ...asRecord(defaults.mcp),
+    nanoclaw: {
+      type: 'local',
+      command: ['node', mcpServerPath],
+      environment: {
+        NANOCLAW_CHAT_JID: containerInput.chatJid,
+        NANOCLAW_GROUP_FOLDER: containerInput.groupFolder,
+        NANOCLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
       },
     },
-    // Load AGENTS.md and any additional instruction files.
-    // Non-main groups also get the global AGENTS.md (matches Claude runtime behaviour).
-    instructions: [
-      'AGENTS.md',
-      ...(!containerInput.isMain && fs.existsSync('/workspace/global/AGENTS.md')
-        ? ['/workspace/global/AGENTS.md']
-        : []),
-    ],
+  };
+
+  const instructions = mergeInstructions(defaults.instructions, [
+    'AGENTS.md',
+    ...(!containerInput.isMain && fs.existsSync('/workspace/global/AGENTS.md')
+      ? ['/workspace/global/AGENTS.md']
+      : []),
+  ]);
+
+  const config: Record<string, unknown> = {
+    ...defaults,
+    $schema:
+      typeof defaults.$schema === 'string'
+        ? defaults.$schema
+        : 'https://opencode.ai/config.json',
+    ...(model ? { model } : {}),
+    ...(smallModel ? { small_model: smallModel } : {}),
+    permission,
+    ...(Object.keys(providerConfig).length > 0 ? { provider: providerConfig } : {}),
+    mcp,
+    instructions,
   };
 
   const configPath = '/workspace/group/opencode.json';
