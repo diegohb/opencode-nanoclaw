@@ -7,9 +7,10 @@ This guide covers how to install, configure, and deploy Microsoft Teams integrat
 NanoClaw's MS Teams integration uses a **sidecar container pattern**:
 
 ```
-Teams Cloud ΓåÆ Teams Sidecar Container ΓåÆ NanoClaw Host ΓåÆ Container Agent
-                    Γåæ                         Γöé
-                    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ Responses ΓöÇΓöÇΓöÇΓöÿ
+Teams Cloud -> Teams Sidecar Container -> NanoClaw Host -> Container Agent
+             ^
+             |
+           Responses flow back to Teams
 ```
 
 The sidecar container runs the Bot Framework SDK and handles all Teams-specific communication. NanoClaw forwards inbound messages to your agent containers and routes responses back to Teams.
@@ -23,20 +24,14 @@ The sidecar container runs the Bot Framework SDK and handles all Teams-specific 
 - An Azure account (free tier works)
 - Admin access to your Teams workspace (or ability to sideload apps)
 
-### Step 1: Apply the Integration
+### Step 1: Confirm the Integration Files
 
-Run the skill in Claude Code:
-
-```
-/add-ms-teams
-```
-
-This adds:
+This fork already includes the MS Teams integration. Confirm these files are present:
 
 - `src/channels/msteams.ts` - Teams channel class
 - `src/sidecar-channel.ts` - Sidecar infrastructure
 - `container/teams-sidecar/` - Sidecar container
-- `.claude/skills/add-ms-teams/` - Skill documentation
+- `docs/sidecar-protocol.md` - Host/sidecar HTTP contract
 
 ### Step 2: Build the Sidecar Container
 
@@ -49,27 +44,27 @@ This adds:
 ### Step 1: Create Azure Bot Registration
 
 1. Go to [Azure Portal](https://portal.azure.com)
-2. Click **Create a resource** ΓåÆ Search for **Azure Bot** ΓåÆ Click **Create**
+2. Click **Create a resource** -> Search for **Azure Bot** -> Click **Create**
 3. Fill in:
    - **Bot handle**: Choose a unique name (e.g., `nanoclaw-assistant`)
    - **Subscription**: Your Azure subscription
    - **Pricing tier**: Free (F0) for development
    - **Type of App**: **Single Tenant**
    - **Creation type**: **Create new Microsoft App ID**
-4. Click **Review + create** ΓåÆ **Create**
+4. Click **Review + create** -> **Create**
 
 ### Step 2: Get Credentials
 
-1. Go to your Bot resource ΓåÆ **Configuration**
+1. Go to your Bot resource -> **Configuration**
 2. Copy the **Microsoft App ID** (this is `TEAMS_APP_ID`)
-3. Click **Manage Password** ΓåÆ **Certificates & secrets** ΓåÆ **Client secrets**
-4. Click **New client secret** ΓåÆ Set description and expiry ΓåÆ **Add**
+3. Click **Manage Password** -> **Certificates & secrets** -> **Client secrets**
+4. Click **New client secret** -> Set description and expiry -> **Add**
 5. **Copy the Value immediately** (this is `TEAMS_APP_SECRET` - shown only once)
 
 ### Step 3: Enable Teams Channel
 
-1. In Azure Bot ΓåÆ **Channels** ΓåÆ Click **Microsoft Teams**
-2. Accept terms ΓåÆ **Apply**
+1. In Azure Bot -> **Channels** -> Click **Microsoft Teams**
+2. Accept terms -> **Apply**
 
 ### Step 4: Configure Messaging Endpoint
 
@@ -80,7 +75,7 @@ ngrok http 3978
 ```
 
 1. Copy the HTTPS URL from ngrok
-2. In Azure Bot ΓåÆ **Configuration** ΓåÆ Set **Messaging endpoint**:
+2. In Azure Bot -> **Configuration** -> Set **Messaging endpoint**:
    ```
    https://your-ngrok-url.ngrok.io/api/messages
    ```
@@ -124,8 +119,8 @@ Create `teams-app/manifest.json`:
     "full": "NanoClaw AI Assistant"
   },
   "description": {
-    "short": "AI assistant powered by Claude",
-    "full": "Personal AI assistant powered by Claude"
+    "short": "AI assistant powered by NanoClaw",
+    "full": "Personal AI assistant powered by NanoClaw"
   },
   "icons": {
     "color": "color.png",
@@ -157,13 +152,13 @@ Zip all files into `teams-app.zip`.
 
 **For development (sideload):**
 
-1. Open Teams ΓåÆ **Apps** ΓåÆ **Manage your apps**
-2. **Upload a custom app** ΓåÆ Select `teams-app.zip`
+1. Open Teams -> **Apps** -> **Manage your apps**
+2. **Upload a custom app** -> Select `teams-app.zip`
 
 **For organization-wide:**
 
 1. Go to [Teams Admin Center](https://admin.teams.microsoft.com/)
-2. **Teams apps** ΓåÆ **Manage apps** ΓåÆ **Upload new app**
+2. **Teams apps** -> **Manage apps** -> **Upload new app**
 
 ## Deployment
 
@@ -236,6 +231,10 @@ Example: `teams:19:abc123@thread.tacv2`
 teams_main        # main control channel
 teams_<name>      # additional channels
 ```
+
+### Sidecar Data
+
+The Teams sidecar stores conversation references under `data/msteams/` on the host and mounts that directory into the container at `/data`. This lets proactive messaging survive sidecar restarts.
 
 ### Container Ports
 

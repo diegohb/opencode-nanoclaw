@@ -9,6 +9,7 @@
  * plumbing lives here.
  */
 import { execSync, spawn, ChildProcess } from 'child_process';
+import fs from 'fs';
 import http from 'http';
 
 import { Channel, OnInboundMessage, OnChatMetadata } from './types.js';
@@ -24,6 +25,11 @@ import { SIDECAR_INBOUND_PORT } from './config.js';
 /** The host address the sidecar container uses to reach NanoClaw. */
 const CONTAINER_HOST_GATEWAY = 'host.docker.internal';
 
+export interface WritableMount {
+  hostPath: string;
+  containerPath: string;
+}
+
 export interface SidecarConfig {
   /** Channel name (e.g. 'msteams'). Used for container naming and logging. */
   name: string;
@@ -37,6 +43,8 @@ export interface SidecarConfig {
   hostPort: number;
   /** Environment variable names to read from .env and pass to the sidecar. */
   envVars: string[];
+  /** Writable bind mounts to attach to the sidecar container. */
+  writableMounts?: WritableMount[];
   /** Additional Docker run args (optional). */
   extraDockerArgs?: string[];
 }
@@ -99,6 +107,12 @@ export abstract class SidecarChannel implements Channel {
       `NANOCLAW_HOST=http://${CONTAINER_HOST_GATEWAY}:${SIDECAR_INBOUND_PORT}`,
     );
 
+    const mountArgs: string[] = [];
+    for (const mount of this.config.writableMounts || []) {
+      fs.mkdirSync(mount.hostPath, { recursive: true });
+      mountArgs.push('-v', `${mount.hostPath}:${mount.containerPath}`);
+    }
+
     const args = [
       'run',
       '--rm',
@@ -107,6 +121,7 @@ export abstract class SidecarChannel implements Channel {
       '-p',
       `${this.config.hostPort}:${this.config.sidecarPort}`,
       ...hostGatewayArgs(),
+      ...mountArgs,
       ...envArgs,
       ...(this.config.extraDockerArgs || []),
       this.config.imageName,
