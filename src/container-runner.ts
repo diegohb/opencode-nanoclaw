@@ -64,7 +64,6 @@ interface VolumeMount {
 const OPENCODE_DEFAULTS_DIR = '/workspace/opencode-defaults';
 const OPENCODE_DEFAULT_MOUNTS = [
   { source: 'opencode.json', target: 'opencode.json' },
-  { source: 'package.json', target: 'package.json' },
   { source: 'skills', target: 'skills' },
 ];
 

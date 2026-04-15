@@ -338,13 +338,11 @@ describe('container-runner timeout behavior', () => {
       ),
     ).toBe(true);
     expect(
-      containerArgs.some((arg) =>
-        arg.includes('/workspace/opencode-defaults/package.json'),
-      ),
-    ).toBe(true);
-    expect(
       containerArgs.some((arg) => arg.includes('/workspace/opencode-defaults/skills')),
     ).toBe(true);
+    expect(containerArgs.some((arg) => arg.includes('package.json'))).toBe(
+      false,
+    );
     expect(containerArgs.some((arg) => arg.includes('bun.lock'))).toBe(false);
     expect(containerArgs.some((arg) => arg.includes('node_modules'))).toBe(false);
   });
