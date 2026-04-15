@@ -1,81 +1,113 @@
 # Branch & Fork Maintenance Guidelines
 
-## Structure
+This document is the practical maintenance guide for the current fork model.
 
-**`qwibitai/nanoclaw`** (upstream) — core engine with skill definitions (`.opencode/skills/`). No channel code on `main`.
+The authoritative policy lives in `FORK-MAPPING.md`. If this document and `FORK-MAPPING.md` disagree, follow `FORK-MAPPING.md` and update this file.
 
-**Channel forks** (`nanoclaw-whatsapp`, `nanoclaw-telegram`, `nanoclaw-slack`, etc.) — each fork = upstream + one channel's code applied. Users clone upstream, then merge a fork into their clone to add a channel.
+## Current Model
 
-**`skill/*` and `feat/*` branches on upstream** — add features unrelated to channels (e.g. `skill/compact`, `skill/apple-container`). Users merge these into their clone to add capabilities. Channel-specific skill branches that duplicate the forks (e.g. `skill/whatsapp`, `skill/telegram`) are legacy.
+- `upstream` is `qwibitai/nanoclaw`.
+- `origin` is the fork repository.
+- `main` must remain upstream-clean and track `upstream/main`.
+- `custom/main` is the long-lived branch for fork-only divergence.
+- `contrib/<topic>` branches are for upstream-safe work.
+- `custom/<topic>` branches are for fork-only work.
 
-## How users add capabilities
+The older channel-forks strategy is retired for this repository. Do not maintain separate long-lived per-channel forks from this checkout.
 
-```
-user clones upstream main
-  ├── merges nanoclaw-whatsapp fork  → adds WhatsApp
-  ├── merges skill/compact branch    → adds /compact command
-  └── merges skill/apple-container   → switches to Apple Container
-```
+## Branch Roles
 
-## Merge directions
+### `main`
 
-```
-upstream main ──→ channel forks     (forward merge to keep forks caught up)
-upstream main ──→ skill branches    (forward merge to keep branches caught up)
-```
+- Fast-forward only from `upstream/main`.
+- No fork-only files, policies, or local tooling.
+- Base branch for `contrib/<topic>` work.
 
-Forks and skill branches carry applied code changes. Users merge them into their own clones/forks to add capabilities. They are never merged back into upstream `main`.
+### `custom/main`
 
-## Forward merge procedure
+- Long-lived integration branch for approved fork-only behavior.
+- Base branch for `custom/<topic>` work.
+- Receives merge commits from validated fork-only topic branches.
 
-```bash
-# In your local nanoclaw checkout
-git checkout main && git pull
+### `contrib/<topic>`
 
-# For a fork:
-git fetch nanoclaw-whatsapp
-git checkout -B whatsapp-merge nanoclaw-whatsapp/main
-git merge main
-# Resolve conflicts (see below)
-# Remove upstream-only workflows (re-added by every merge since main has them):
-git rm .github/workflows/bump-version.yml .github/workflows/update-tokens.yml 2>/dev/null
-git push nanoclaw-whatsapp HEAD:main
-git checkout main && git branch -D whatsapp-merge
+- Branch from `main`.
+- Use only for changes that could be proposed upstream.
+- Must not include fork-only docs, OpenCode-specific behavior, or MS Teams sidecar work.
 
-# For a skill branch:
-git checkout -B skill/compact origin/skill/compact
-git merge main
-# Resolve conflicts (see below)
-git push origin skill/compact
-git checkout main && git branch -D skill/compact
-```
+### `custom/<topic>`
 
-## Conflict resolution
+- Branch from `custom/main`.
+- Use for OpenCode integration, fork governance, MS Teams work, local tooling, and other approved divergence.
 
-The same files conflict every time:
+## Daily Workflow
 
-| File | Resolution |
-|------|------------|
-| `package.json` | Take main's version + keep fork/branch-specific deps |
-| `package-lock.json` | `git checkout main -- package-lock.json && npm install` |
-| `.env.example` | Combine: main's entries + fork/branch-specific entries |
-| `repo-tokens/badge.svg` | Take main's version (auto-generated) |
+### Create a branch
 
-Source code changes (e.g. `src/types.ts`, `src/index.ts`) usually auto-merge cleanly, but can conflict if both sides modify the same lines. **Always build and test after every forward merge** — auto-merged code can be silently wrong (e.g. referencing a renamed function or using a removed parameter) even when git reports no conflicts.
+- Upstream-safe work: branch from `main` into `contrib/<topic>`.
+- Fork-only work: branch from `custom/main` into `custom/<topic>`.
 
-## When to merge forward
+Use `scripts/new-fork-branch.ps1` when practical.
 
-After any main change that touches shared files (`package.json`, `src/index.ts`, `AGENTS.md`, etc.). Small frequent merges = trivial conflicts. Large infrequent merges = painful.
+### Sync from upstream
 
-## Fork setup
+1. Ensure the working tree is clean.
+2. Fetch all remotes.
+3. Fast-forward `main` to `upstream/main`.
+4. Review upstream changes for any impact on fork-only behavior.
+5. Replay or merge approved updates into `custom/main` through targeted `custom/<topic>` branches.
+6. Validate before merging back to `custom/main`.
 
-When creating a new channel fork:
+Use `scripts/fork-sync.ps1` for the safe portion of this workflow.
 
-1. Fork `nanoclaw` to `nanoclaw-{channel}`
-2. Remove upstream-only workflows: `bump-version.yml`, `update-tokens.yml`
-3. Add channel code, deps, env vars
-4. Forward-merge main immediately to establish a clean baseline
+## Merge Strategy
 
-## Dependencies
+- Merge fork-only topic branches into `custom/main` with explicit merge commits.
+- Do not merge fork-only work into `main`.
+- Keep mixed requests split across `contrib/<topic>` and `custom/<topic>` branches.
+- Prefer small, concern-scoped branches over broad integration batches.
 
-Forks and branches add their own deps on top of upstream's. When upstream adds or removes a dependency, verify that forks/branches still build after the next forward merge — transitive dependency changes can break downstream code.
+## Conflict Hotspots
+
+These files are likely to need manual review during replay or upstream sync:
+
+| File or Area | Typical issue |
+| --- | --- |
+| `package.json` | Upstream dependency churn versus fork-only additions |
+| `package-lock.json` | Lockfile conflicts after upstream dependency updates |
+| `AGENTS.md` | Fork policy and local workflow guidance drift |
+| `README.md` and docs | Divergence between upstream documentation and fork behavior |
+| `src/index.ts` and container runtime files | OpenCode and sidecar integration overlap with upstream runtime changes |
+
+Auto-merges are not enough here. Always run validation after conflict resolution.
+
+## Replay Guidance
+
+When rebuilding divergence from a fresh upstream base:
+
+1. Preserve current state with safety branches.
+2. Reset `main` to `upstream/main`.
+3. Create `custom/main` from the same clean base.
+4. Reapply approved fork-only work in isolated `custom/<topic>` branches.
+5. Test after each replay batch.
+6. Merge validated branches into `custom/main`.
+
+If historical topic branches no longer reflect isolated concerns, treat them as references and recreate fresh branches from `custom/main`.
+
+## Operator Rules
+
+- Do not rewrite published history unless explicitly approved.
+- Do not use destructive git commands to force a clean state unless explicitly approved.
+- Preserve safety and archive branches before branch reclassification.
+- If a change cannot live cleanly on `main`, it belongs on `custom/*`.
+- If a request mixes upstream-safe and fork-only work, split it before implementation.
+
+## Verification Checklist
+
+Before considering the fork state healthy, verify:
+
+- `main` matches `upstream/main`.
+- `custom/main` contains only approved fork divergence.
+- Active work is happening on `contrib/<topic>` or `custom/<topic>` branches, not directly on long-lived branches.
+- Helper scripts still match the branch model.
+- Build and test pass after replaying or merging fork-only changes.
