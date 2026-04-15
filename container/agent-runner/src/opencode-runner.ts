@@ -124,44 +124,33 @@ function waitForIpcMessage(): Promise<string | null> {
  * Write opencode.json config to the workspace.
  */
 function writeOpencodeConfig(containerInput: ContainerInput): void {
-  // Determine provider and model from config or secrets
   const oc = containerInput.opencodeConfig;
-  let provider = oc?.provider || 'opencode';
-  let model = oc?.model || 'opencode/kimi-k2.5-free';
 
-  // Auto-detect provider from available secrets
-  if (!oc?.provider && containerInput.secrets) {
-    if (containerInput.secrets['ANTHROPIC_API_KEY']) {
-      provider = 'anthropic';
-      model = oc?.model || 'anthropic/claude-sonnet-4-20250514';
-    } else if (containerInput.secrets['OPENROUTER_API_KEY']) {
-      provider = 'openrouter';
-      model = oc?.model || 'openrouter/anthropic/claude-sonnet-4';
-    }
-  }
+  // Only override model when explicitly requested — otherwise global OpenCode
+  // config (e.g. ~/.config/opencode/config.json) picks the model.
+  const model = oc?.model ?? null;
 
-  // Resolve API key from secrets (only if explicitly configured)
+  // Only set provider block when an explicit apiKey is forwarded.
   const apiKey =
     oc?.apiKey && containerInput.secrets?.[oc.apiKey]
       ? containerInput.secrets[oc.apiKey]
       : undefined;
+  const provider = oc?.provider ?? null;
 
   // MCP server path (compiled dist location at container runtime)
   const mcpServerPath = '/tmp/dist/ipc-mcp-stdio.js';
 
   const config: Record<string, unknown> = {
     $schema: 'https://opencode.ai/config.json',
-    model,
+    ...(model ? { model } : {}),
     permission: {
       edit: 'allow',
       bash: 'allow',
       webfetch: 'allow',
     },
-    provider: {
-      [provider]: {
-        ...(apiKey ? { apiKey } : {}),
-      },
-    },
+    ...(provider && apiKey
+      ? { provider: { [provider]: { options: { apiKey } } } }
+      : {}),
     mcp: {
       nanoclaw: {
         type: 'local',
@@ -225,25 +214,24 @@ export async function main(): Promise<void> {
   const OPENCODE_STATE_DIR = '/workspace/opencode-state';
   process.env.XDG_STATE_HOME = OPENCODE_STATE_DIR;
 
-  // Set project directory for OpenCode server
-  process.env.OPENCODE_PROJECT = '/workspace/group';
+  // Change CWD to the group workspace so OpenCode finds opencode.json there.
+  // The entrypoint runs `cd /app` before launching node, so we must set CWD
+  // explicitly — otherwise OpenCode looks for project config in /app and falls
+  // back to its own global default model.
+  process.chdir('/workspace/group');
+  // Also set OPENCODE_CONFIG explicitly so config discovery uses our file
+  // regardless of git-root traversal behaviour.
+  const configPath = '/workspace/group/opencode.json';
+  process.env.OPENCODE_CONFIG = configPath;
+  log(`Using config: ${configPath}`);
 
-  // Determine model for createOpencode (use same logic as writeOpencodeConfig)
-  const oc = containerInput.opencodeConfig;
-  let model = oc?.model || 'opencode/kimi-k2.5-free';
-  if (!oc?.provider && containerInput.secrets) {
-    if (containerInput.secrets['ANTHROPIC_API_KEY']) {
-      model = oc?.model || 'anthropic/claude-sonnet-4-20250514';
-    } else if (containerInput.secrets['OPENROUTER_API_KEY']) {
-      model = oc?.model || 'openrouter/anthropic/claude-sonnet-4';
-    }
-  }
-
-  // Start OpenCode server and get client
+  // Start OpenCode server and get client.
+  // Do NOT pass config here — all settings (model, provider, permissions) are already
+  // written to opencode.json above. Passing config here would set OPENCODE_CONFIG_CONTENT
+  // at priority 6, which can override and strip the provider API key from opencode.json.
   const { client, server } = await createOpencode({
     hostname: '127.0.0.1',
     port: 4096,
-    config: { model },
   });
 
   log('OpenCode server started');
@@ -284,13 +272,16 @@ export async function main(): Promise<void> {
     }
 
     // Set up SSE event stream.
-    // session.prompt() is a blocking HTTP call that returns the full response in response.data.parts.
-    // The SSE stream runs concurrently and populates lastAssistantText as a fallback in case
-    // response.data.parts is empty. Each message.part.updated event carries the full accumulated
-    // text in part.text (not a delta), so we overwrite rather than append.
+    // session.prompt() returns when the assistant message is *created* (not completed).
+    // The actual text content arrives via SSE message.part.updated events.
+    // We wait for session.idle (fires when the full turn is done) before reading the result.
     const eventResult = await client.event.subscribe();
     const eventStream = eventResult.stream;
-    let lastAssistantText = '';
+    // Idle-gate: resolves when session.idle fires for our session.
+    // Reset before each prompt by replacing idleResolve.
+    // eslint-disable-next-line prefer-const
+    let idleResolve: (() => void) | undefined;
+    let idlePromise = new Promise<void>((r) => { idleResolve = r; });
 
     const eventProcessor = (async () => {
       try {
@@ -299,13 +290,13 @@ export async function main(): Promise<void> {
             type?: string;
             properties?: Record<string, unknown>;
           };
-          if (evt.type === 'message.part.updated') {
-            const part = evt.properties?.part as
-              | { type: string; text?: string }
-              | undefined;
-            if (part?.type === 'text' && part.text) {
-              lastAssistantText = part.text;
+          if (evt.type === 'session.idle') {
+            const props = evt.properties as { sessionID?: string } | undefined;
+            if (props?.sessionID === sessionId) {
+              idleResolve?.();
             }
+          } else if (evt.type === 'session.error') {
+            log(`Session error: ${JSON.stringify(evt.properties)}`);
           }
         }
       } catch {
@@ -326,16 +317,20 @@ export async function main(): Promise<void> {
       prompt += '\n' + pending.join('\n');
     }
 
-    // Query loop: send prompt → wait for IPC → repeat
+    // Query loop: send prompt → wait for session.idle → write output → wait for IPC → repeat
     while (true) {
       log(`Sending prompt (${prompt.length} chars)...`);
-      lastAssistantText = '';
+
+      // Reset idle gate for this turn
+      idlePromise = new Promise<void>((r) => { idleResolve = r; });
 
       try {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new PromptTimeoutError()), PROMPT_TIMEOUT_MS),
         );
-        const response = await Promise.race([
+
+        // Submit the prompt. Returns when the assistant message is created (not necessarily done).
+        await Promise.race([
           client.session.prompt({
             path: { id: sessionId },
             body: {
@@ -345,20 +340,37 @@ export async function main(): Promise<void> {
           timeoutPromise,
         ]);
 
-        // Primary: extract text from response body parts.
-        // Fallback: use lastAssistantText captured from SSE events (populated concurrently
-        // during the blocking session.prompt() call).
-        let result: string | null = null;
-        if (response.data?.parts) {
-          result =
-            extractText(
-              response.data.parts as Array<{ type: string; text?: string }>,
-            ) || null;
-        }
-        if (!result && lastAssistantText) {
-          result = lastAssistantText;
-        }
+        // Wait for session.idle — fires when the full assistant turn is complete.
+        await Promise.race([idlePromise, timeoutPromise]);
 
+        // After idle, fetch messages and extract text from the last assistant turn.
+        // session.messages() returns Array<{ info: Message; parts: Part[] }> — parts are
+        // available directly, no SSE buffering needed.
+        let result: string | null = null;
+        const msgsResult = await client.session.messages({
+          path: { id: sessionId },
+        });
+        if (!msgsResult.error && msgsResult.data) {
+          const items = msgsResult.data as Array<{
+            info?: { id?: string; role?: string; error?: unknown };
+            parts?: Array<{ type?: string; text?: string }>;
+          }>;
+
+          // Walk backwards to find the last assistant message
+          for (let i = items.length - 1; i >= 0; i--) {
+            const item = items[i];
+            if (item.info?.role === 'assistant') {
+              if (item.info.error) {
+                log(`Assistant message error: ${JSON.stringify(item.info.error)}`);
+              }
+              const textParts = (item.parts ?? []).filter((p) => p.type === 'text' && p.text);
+              result = textParts.map((p) => p.text!).join('') || null;
+              break;
+            }
+          }
+        } else {
+          log(`Messages API error: ${JSON.stringify(msgsResult.error)}`);
+        }
         log(`Got response: ${result ? result.slice(0, 200) : '(empty)'}...`);
 
         writeOutput({
@@ -407,5 +419,6 @@ export async function main(): Promise<void> {
   } finally {
     server.close();
     log('OpenCode server stopped');
+    process.exit(0);
   }
 }

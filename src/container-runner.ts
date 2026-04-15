@@ -4,6 +4,7 @@
  */
 import { ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 import {
@@ -43,6 +44,8 @@ export interface ContainerInput {
   isScheduledTask?: boolean;
   assistantName?: string;
   script?: string;
+  /** Runtime config forwarded to the container's opencode runner. */
+  opencodeConfig?: { model?: string; small_model?: string };
 }
 
 export interface ContainerOutput {
@@ -56,6 +59,28 @@ interface VolumeMount {
   hostPath: string;
   containerPath: string;
   readonly: boolean;
+}
+
+/**
+ * Read model and small_model from the host's OpenCode global config.
+ * Only these two fields are forwarded — credentials and plugin-specific
+ * settings are excluded so the container doesn't need the host environment.
+ * Returns null when no config or no model fields are found.
+ */
+function readHostOpencodeModel(): { model?: string; small_model?: string } | null {
+  const cfgPath = path.join(os.homedir(), '.config', 'opencode', 'opencode.json');
+  if (!fs.existsSync(cfgPath)) return null;
+  try {
+    const raw = fs.readFileSync(cfgPath, 'utf-8');
+    // Strip JSONC comments (// and /* */ style)
+    const stripped = raw.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const parsed = JSON.parse(stripped) as Record<string, unknown>;
+    const model = typeof parsed.model === 'string' ? parsed.model : undefined;
+    const small_model = typeof parsed.small_model === 'string' ? parsed.small_model : undefined;
+    return model || small_model ? { model, small_model } : null;
+  } catch {
+    return null;
+  }
 }
 
 function buildVolumeMounts(
@@ -268,6 +293,21 @@ export async function runContainerAgent(
 
   const groupDir = resolveGroupFolderPath(group.folder);
   fs.mkdirSync(groupDir, { recursive: true });
+
+  // Augment input with model from host's OpenCode global config when the caller
+  // has not already specified one.  Only model/small_model are forwarded —
+  // credentials and plugins that require the host environment are intentionally
+  // excluded.  Provider auth is handled by the OneCLI gateway at runtime.
+  if (!input.opencodeConfig?.model) {
+    const hostModel = readHostOpencodeModel();
+    if (hostModel) {
+      input = {
+        ...input,
+        opencodeConfig: { ...input.opencodeConfig, model: hostModel.model, small_model: hostModel.small_model },
+      };
+      logger.debug({ model: hostModel.model }, 'Forwarding model from host OpenCode config');
+    }
+  }
 
   const mounts = buildVolumeMounts(group, input.isMain);
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');

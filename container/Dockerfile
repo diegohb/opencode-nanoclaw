@@ -30,8 +30,8 @@ RUN apt-get update && apt-get install -y \
 ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install agent-browser and claude-code globally
-RUN npm install -g agent-browser opencode-ai
+# Install agent-browser globally (browser automation available to agents via Bash)
+RUN npm install -g agent-browser
 
 # Create app directory
 WORKDIR /app
@@ -47,6 +47,9 @@ COPY agent-runner/ ./
 
 # Build TypeScript
 RUN npm run build
+
+# Install opencode globally AFTER app deps so no local package can shadow it
+RUN npm install -g opencode-ai
 
 # Create workspace directories
 RUN mkdir -p /workspace/group /workspace/global /workspace/extra /workspace/ipc/messages /workspace/ipc/tasks /workspace/ipc/input
