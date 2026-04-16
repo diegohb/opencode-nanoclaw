@@ -4,6 +4,14 @@ This repository is maintained as a long-lived fork with a strict separation betw
 
 This file is the authoritative fork strategy for future maintenance work. It supersedes older fork-divergence notes that may still exist on historical branches.
 
+Deprecated companion docs:
+- `docs/BRANCH-FORK-MAINTENANCE.md` is retired and can be removed.
+- Keep all branch and maintenance policy updates in this file.
+
+Related fork-operations docs:
+- `docs/SKILLS-REGISTRY.md` - skill source inventory and intake decisions
+- `docs/NON-CLAUDE-SKILL-INTAKE.md` - non-Claude workflow for skill intake from GitHub sources
+
 ## Objective
 
 Keep upstream sync simple and predictable while preserving fork-only behavior.
@@ -117,6 +125,13 @@ If a request mixes upstream-safe and fork-only work, split it into separate bran
 
 Use `scripts/new-fork-branch.ps1` when practical.
 
+Recommended branch naming patterns:
+
+- Upstream-safe work: `contrib/<topic>`
+- Fork-only work: `custom/<topic>`
+
+Prefer small, concern-scoped branches over broad integration batches.
+
 ### Sync from upstream
 
 1. Fetch all remotes.
@@ -126,6 +141,39 @@ Use `scripts/new-fork-branch.ps1` when practical.
 5. Run validation before merging back to `custom/main`.
 
 Use `scripts/fork-sync.ps1` to handle the safe portion of this workflow.
+
+## Merge Strategy
+
+- Merge fork-only topic branches into `custom/main` with explicit merge commits.
+- Do not merge fork-only work into `main`.
+- Keep mixed requests split across `contrib/<topic>` and `custom/<topic>` branches.
+
+## Conflict Hotspots
+
+These files and areas are likely to need manual review during replay or upstream sync:
+
+| File or Area | Typical issue |
+| --- | --- |
+| `package.json` | Upstream dependency churn versus fork-only additions |
+| `package-lock.json` | Lockfile conflicts after upstream dependency updates |
+| `AGENTS.md` | Fork policy and local workflow guidance drift |
+| `README.md` and `docs/` | Divergence between upstream documentation and fork behavior |
+| `src/index.ts` and container runtime files | OpenCode and sidecar integration overlap with upstream runtime changes |
+
+Auto-merges are not enough for these paths. Run validation after conflict resolution.
+
+## Replay Guidance
+
+When rebuilding divergence from a fresh upstream base:
+
+1. Preserve current state with safety branches.
+2. Reset `main` to `upstream/main`.
+3. Create `custom/main` from the same clean base.
+4. Reapply approved fork-only work in isolated `custom/<topic>` branches.
+5. Test after each replay batch.
+6. Merge validated branches into `custom/main`.
+
+If historical topic branches no longer reflect isolated concerns, treat them as references and recreate fresh branches from `custom/main`.
 
 ## Re-Fork And Replay Workflow
 
@@ -169,3 +217,4 @@ Before considering the fork workflow stable, verify:
 - Prefer additive migration over history surgery.
 - Prefer small replay batches with tests after each batch.
 - If a destructive step becomes necessary, stop and get explicit approval.
+- Ensure the working tree is clean before upstream sync and replay actions.
