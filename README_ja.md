@@ -67,7 +67,7 @@ claude
 
 **理解できる規模。** 1つのプロセス、少数のソースファイル、マイクロサービスなし。NanoClawのコードベース全体を理解したい場合は、Claude Codeに説明を求めるだけです。
 
-**分離によるセキュリティ。** エージェントはLinuxコンテナ（macOSではApple Container、またはDocker）で実行され、明示的にマウントされたものだけが見えます。コマンドはホストではなくコンテナ内で実行されるため、Bashアクセスは安全です。
+**分離によるセキュリティ。** エージェントはLinuxコンテナ（Docker）で実行され、明示的にマウントされたものだけが見えます。コマンドはホストではなくコンテナ内で実行されるため、Bashアクセスは安全です。
 
 **個人ユーザー向け。** NanoClawはモノリシックなフレームワークではなく、各ユーザーのニーズに正確にフィットするソフトウェアです。肥大化するのではなく、オーダーメイドになるよう設計されています。自分のフォークを作成し、Claude Codeにニーズに合わせて変更させます。
 
@@ -89,7 +89,7 @@ claude
 - **メインチャネル** - 管理制御用のプライベートチャネル（セルフチャット）。各グループは完全に分離。
 - **スケジュールタスク** - Claudeを実行し、メッセージを返せる定期ジョブ。
 - **Webアクセス** - Webからのコンテンツ検索・取得。
-- **コンテナ分離** - エージェントは[Dockerサンドボックス](https://nanoclaw.dev/blog/nanoclaw-docker-sandboxes)（マイクロVM分離）、Apple Container（macOS）、またはDocker（macOS/Linux）でサンドボックス化。
+- **コンテナ分離** - エージェントは[Dockerサンドボックス](https://nanoclaw.dev/blog/nanoclaw-docker-sandboxes)（マイクロVM分離）またはDocker（macOS/Linux）でサンドボックス化。
 - **エージェントスウォーム** - 複雑なタスクで協力する専門エージェントチームを起動。
 - **オプション連携** - Gmail（`/add-gmail`）などをスキルで追加。
 
@@ -146,7 +146,7 @@ Telegram対応を追加したい場合、コアコードベースにTelegramを�
 - macOSまたはLinux
 - Node.js 20以上
 - [Claude Code](https://claude.ai/download)
-- [Apple Container](https://github.com/apple/container)（macOS）または[Docker](https://docker.com/products/docker-desktop)（macOS/Linux）
+- [Docker](https://docker.com/products/docker-desktop)（macOS/Linux）
 
 ## アーキテクチャ
 
@@ -173,7 +173,7 @@ Telegram対応を追加したい場合、コアコードベースにTelegramを�
 
 **なぜDockerなのか？**
 
-Dockerはクロスプラットフォーム対応（macOS、Linux、さらにWSL2経由のWindows）と成熟したエコシステムを提供します。macOSでは、`/convert-to-apple-container`でオプションとしてApple Containerに切り替え、より軽量なネイティブランタイムを使用できます。
+Dockerはクロスプラットフォーム対応（macOS、Linux、さらにWSL2経由のWindows）と成熟したエコシステムを提供します。
 
 **Linuxで実行できますか？**
 

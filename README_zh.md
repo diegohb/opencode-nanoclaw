@@ -39,7 +39,7 @@ claude
 
 **小巧易懂：** 单一进程，少量源文件。无微服务、无消息队列、无复杂抽象层。让 Claude Code 引导您轻松上手。
 
-**通过隔离保障安全:** 智能体运行在 Linux 容器（在 macOS 上是 Apple Container，或 Docker）中。它们只能看到被明确挂载的内容。即便通过 Bash 访问也十分安全，因为所有命令都在容器内执行，不会直接操作您的宿主机。
+**通过隔离保障安全:** 智能体运行在 Linux 容器（Docker）中。它们只能看到被明确挂载的内容。即便通过 Bash 访问也十分安全，因为所有命令都在容器内执行，不会直接操作您的宿主机。
 
 **为单一用户打造:** 这不是一个框架，是一个完全符合您个人需求的、可工作的软件。您可以 Fork 本项目，然后让 Claude Code 根据您的精确需求进行修改和适配。
 
@@ -58,7 +58,7 @@ claude
 - **主频道** - 您的私有频道（self-chat），用于管理控制；其他所有群组都完全隔离
 - **计划任务** - 运行 Claude 的周期性作业，并可以给您回发消息
 - **网络访问** - 搜索和抓取网页内容
-- **容器隔离** - 智能体在 Apple Container (macOS) 或 Docker (macOS/Linux) 的沙箱中运行
+- **容器隔离** - 智能体在 Docker (macOS/Linux) 的沙箱中运行
 - **智能体集群（Agent Swarms）** - 启动多个专业智能体团队，协作完成复杂任务（首个支持此功能的个人 AI 助手）
 - **可选集成** - 通过技能添加 Gmail (`/add-gmail`) 等更多功能
 
@@ -115,7 +115,7 @@ claude
 - macOS 或 Linux
 - Node.js 20+
 - [Claude Code](https://claude.ai/download)
-- [Apple Container](https://github.com/apple/container) (macOS) 或 [Docker](https://docker.com/products/docker-desktop) (macOS/Linux)
+- [Docker](https://docker.com/products/docker-desktop) (macOS/Linux)
 
 ## 架构
 
@@ -142,7 +142,7 @@ claude
 
 **为什么是 Docker？**
 
-Docker 提供跨平台支持（macOS 和 Linux）和成熟的生态系统。在 macOS 上，您可以选择通过运行 `/convert-to-apple-container` 切换到 Apple Container，以获得更轻量级的原生运行时体验。
+Docker 提供跨平台支持（macOS 和 Linux）和成熟的生态系统。
 
 **我可以在 Linux 上运行吗？**
 

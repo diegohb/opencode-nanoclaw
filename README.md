@@ -49,7 +49,7 @@ Then run `/setup`. The OpenCode session handles dependencies, authentication, co
 
 **Small enough to understand.** One process, a few source files and no microservices. If you want to understand the full NanoClaw codebase, ask the agent to walk you through it.
 
-**Secure by isolation.** Agents run in Linux containers (Apple Container on macOS, or Docker) and they can only see what's explicitly mounted. Bash access is safe because commands run inside the container, not on your host.
+**Secure by isolation.** Agents run in Linux containers (Docker) and they can only see what's explicitly mounted. Bash access is safe because commands run inside the container, not on your host.
 
 **Built for the individual user.** NanoClaw isn't a monolithic framework; it's software that fits each user's exact needs. Instead of becoming bloatware, NanoClaw is designed to be bespoke. You make your own fork and have OpenCode modify it to match your needs.
 
@@ -71,7 +71,7 @@ Then run `/setup`. The OpenCode session handles dependencies, authentication, co
 - **Main channel** - Your private channel (self-chat) for admin control; every group is completely isolated
 - **Scheduled tasks** - Recurring jobs that run OpenCode and can message you back
 - **Web access** - Search and fetch content from the Web
-- **Container isolation** - Agents are sandboxed in Docker (macOS/Linux), [Docker Sandboxes](docs/docker-sandboxes.md) (micro VM isolation), or Apple Container (macOS)
+- **Container isolation** - Agents are sandboxed in Docker (macOS/Linux) or [Docker Sandboxes](docs/docker-sandboxes.md) (micro VM isolation)
 - **Credential security** - Two supported strategies: **direct auth** (provider API keys are read from the host environment and forwarded only to the specific container that needs them, not stored in containers) and **OneCLI gateway** (optional; intercepts outbound HTTPS and injects credentials at the proxy level, supporting per-agent policies and rate limits). See [Security](docs/SECURITY.md) for the tradeoffs.
 - **Agent Swarms** - Spin up teams of specialized agents that collaborate on complex tasks
 - **Optional integrations** - Add Gmail (`/add-gmail`) and more via skills
@@ -126,7 +126,7 @@ Skills we'd like to see:
 - macOS, Linux, or Windows (via WSL2)
 - Node.js 20+
 - [OpenCode](https://opencode.ai)
-- [Apple Container](https://github.com/apple/container) (macOS) or [Docker](https://docker.com/products/docker-desktop) (macOS/Linux)
+- [Docker](https://docker.com/products/docker-desktop) (macOS/Linux)
 
 ## Architecture
 
@@ -153,7 +153,7 @@ Key files:
 
 **Why Docker?**
 
-Docker provides cross-platform support (macOS, Linux and even Windows via WSL2) and a mature ecosystem. On macOS, you can optionally switch to Apple Container via `/convert-to-apple-container` for a lighter-weight native runtime. For additional isolation, [Docker Sandboxes](docs/docker-sandboxes.md) run each container inside a micro VM.
+Docker provides cross-platform support (macOS, Linux and even Windows via WSL2) and a mature ecosystem. For additional isolation, [Docker Sandboxes](docs/docker-sandboxes.md) run each container inside a micro VM.
 
 **Can I run this on Linux or Windows?**
 

@@ -9,7 +9,7 @@ Run setup steps automatically. Only pause when user action is required (channel 
 
 **Principle:** When something is broken or missing, fix it. Don't tell the user to go fix it themselves unless it genuinely requires their manual action (e.g. authenticating a channel, pasting a secret token). If a dependency is missing, install it. If a service won't start, diagnose and repair. Ask the user for permission when needed, then do the work.
 
-**UX Note:** Use `AskUserQuestion` for multiple-choice questions only (e.g. "Docker or Apple Container?", "which channels?"). Do NOT use it when free-text input is needed (e.g. phone numbers, tokens, paths) — just ask the question in plain text and wait for the user's reply.
+**UX Note:** Use `AskUserQuestion` for multiple-choice questions only (e.g. "which channels?", "which credential strategy?"). Do NOT use it when free-text input is needed (e.g. phone numbers, tokens, paths) — just ask the question in plain text and wait for the user's reply.
 
 ## 0. Git & Fork Setup
 
@@ -68,7 +68,7 @@ Run `npx tsx setup/index.ts --step environment` and parse the status block.
 
 - If HAS_AUTH=true → WhatsApp is already configured, note for step 5
 - If HAS_REGISTERED_GROUPS=true → note existing config, offer to skip or reconfigure
-- Record APPLE_CONTAINER and DOCKER values for step 3
+- Record DOCKER value for step 3
 
 ### OpenClaw Migration Detection
 
@@ -97,14 +97,7 @@ Run `npx tsx setup/index.ts --step timezone` and parse the status block.
 
 ### 3a. Choose runtime
 
-Check the preflight results for `APPLE_CONTAINER` and `DOCKER`, and the PLATFORM from step 1.
-
-- PLATFORM=linux → Docker (only option)
-- PLATFORM=macos + APPLE_CONTAINER=installed → AskUserQuestion with two options:
-  1. **Docker (recommended)** — description: "Cross-platform, better credential management, well-tested."
-  2. **Apple Container (experimental)** — description: "Native macOS runtime. Requires advanced setup."
-  If Apple Container, run `/convert-to-apple-container` now, then skip to 3c.
-- PLATFORM=macos + APPLE_CONTAINER=not_found → Docker
+Use Docker as the runtime on all supported platforms.
 
 ### 3a-docker. Install Docker
 
@@ -114,26 +107,12 @@ Check the preflight results for `APPLE_CONTAINER` and `DOCKER`, and the PLATFORM
   - macOS: install via `brew install --cask docker`, then `open -a Docker` and wait for it to start. If brew not available, direct to Docker Desktop download at https://docker.com/products/docker-desktop
   - Linux: install with `curl -fsSL https://get.docker.com | sh && sudo usermod -aG docker $USER`. Note: user may need to log out/in for group membership.
 
-### 3b. Apple Container conversion gate (if needed)
-
-**If the chosen runtime is Apple Container**, you MUST check whether the source code has already been converted from Docker to Apple Container. Do NOT skip this step. Run:
-
-```bash
-grep -q "CONTAINER_RUNTIME_BIN = 'container'" src/container-runtime.ts && echo "ALREADY_CONVERTED" || echo "NEEDS_CONVERSION"
-```
-
-**If NEEDS_CONVERSION**, the source code still uses Docker as the runtime. You MUST run the `/convert-to-apple-container` skill NOW, before proceeding to the build step.
-
-**If ALREADY_CONVERTED**, the code already uses Apple Container. Continue to 3c.
-
-**If the chosen runtime is Docker**, no conversion is needed. Continue to 3c.
-
-### 3c. Build and test
+### 3b. Build and test
 
 Run `npx tsx setup/index.ts --step container -- --runtime <chosen>` and parse the status block.
 
 **If BUILD_OK=false:** Read `logs/setup.log` tail for the build error.
-- Cache issue (stale layers): `docker builder prune -f` (Docker) or `container builder stop && container builder rm && container builder start` (Apple Container). Retry.
+- Cache issue (stale layers): `docker builder prune -f`, then retry.
 - Dockerfile syntax or missing files: diagnose from the log and fix, then retry.
 
 **If TEST_OK=false but BUILD_OK=true:** The image built but won't run. Check logs — common cause is runtime not fully started. Wait a moment and retry the test.
@@ -147,7 +126,7 @@ AskUserQuestion: Which credential strategy do you want?
 1. **Direct auth (recommended)** — description: "Simpler setup. NanoClaw reads provider credentials from .env and forwards only the needed key to the container at launch time."
 2. **OneCLI gateway (Docker only, optional)** — description: "More isolation. OneCLI injects credentials at the network layer instead of forwarding a raw key to the container."
 
-If the user chooses **OneCLI gateway** and the chosen runtime is not Docker, tell them OneCLI is optional and unsupported for Apple Container here, then continue with direct auth.
+OneCLI gateway is optional and supported on the Docker runtime.
 
 ### 4a. Direct auth (default)
 
@@ -304,7 +283,7 @@ Tell user to test: send a message in their registered chat. Show: `tail -f logs/
 
 **Service not starting:** Check `logs/nanoclaw.error.log`. Common: wrong Node path (re-run step 7), missing credentials (`.env` for direct auth, or `curl ${ONECLI_URL}/api/health` plus `onecli secrets list` if using OneCLI), missing channel credentials (re-invoke channel skill).
 
-**Container agent fails ("Claude Code process exited with code 1"):** Ensure the container runtime is running — `open -a Docker` (macOS Docker), `container system start` (Apple Container), or `sudo systemctl start docker` (Linux). Check container logs in `groups/main/logs/container-*.log`.
+**Container agent fails ("Claude Code process exited with code 1"):** Ensure Docker is running — `open -a Docker` (macOS) or `sudo systemctl start docker` (Linux). Check container logs in `groups/main/logs/container-*.log`.
 
 **No response to messages:** Check trigger pattern. Main channel doesn't need prefix. Check DB: `npx tsx setup/index.ts --step verify`. Check `logs/nanoclaw.log`.
 

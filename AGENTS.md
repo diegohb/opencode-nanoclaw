@@ -74,6 +74,8 @@ systemctl --user restart nanoclaw
 
 **WhatsApp not connecting after upgrade:** WhatsApp is now a separate skill, not bundled in core. Run `/add-whatsapp` to install it. Existing auth credentials and groups are preserved.
 
+**Built-in test tool false negatives:** The built-in `runTests` tool may execute tests under Bun in some environments, which can produce false failures (notably with `better-sqlite3`). For authoritative results in this repo, prefer `npm test` (Vitest on Node).
+
 **Channel merge conflicts:** If `git merge` fails on `package-lock.json` during channel installation, resolve with:
 
 ```bash
