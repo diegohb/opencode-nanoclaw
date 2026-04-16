@@ -68,7 +68,7 @@ Messages and task operations are verified against group identity:
 
 NanoClaw supports two credential strategies. The strategy is configured per group via `containerConfig.credentialStrategy`.
 
-#### Direct Auth (default-compatible, recommended for simplicity)
+#### Direct Auth (recommended when simplicity is preferred)
 
 Provider API keys are read from the host environment at container spawn time and forwarded **only via stdin** to the specific container that needs them. The container receives the key in `ContainerInput.secrets` for use by `writeOpencodeConfig()` only — it is never written to the container filesystem, environment, or any persistent location.
 
@@ -78,7 +78,7 @@ Provider API keys are read from the host environment at container spawn time and
 3. The container process can read it from stdin, but it is not persisted beyond the OpenCode config write
 4. The `.env` file is still shadowed with `/dev/null` in the project root mount, preventing any other secrets from leaking
 
-**Tradeoff:** The provider key passes through container memory during the process lifetime. If the container is compromised, the key could be observed. If this isolation level is insufficient, use the OneCLI gateway strategy.
+**Tradeoff:** The provider key passes through container memory during the process lifetime. If the container is compromised, the key could be observed. If this isolation level is insufficient, use the OneCLI gateway strategy instead.
 
 #### OneCLI Gateway (optional, stronger isolation)
 
@@ -126,16 +126,16 @@ Each NanoClaw group using the OneCLI strategy gets its own OneCLI agent identity
 │  • IPC authorization                                              │
 │  • Mount validation (external allowlist)                          │
 │  • Container lifecycle                                            │
-│  • OneCLI Agent Vault (injects credentials, enforces policies)   │
+│  • Direct secret forwarding or OneCLI gateway policy              │
 └────────────────────────────────┬─────────────────────────────────┘
                                  │
-                                 ▼ Explicit mounts only, no secrets
+                                 ▼ Explicit mounts only, strategy-specific credentials
 ┌──────────────────────────────────────────────────────────────────┐
 │                CONTAINER (ISOLATED/SANDBOXED)                     │
 │  • Agent execution                                                │
 │  • Bash commands (sandboxed)                                      │
 │  • File operations (limited to mounts)                            │
-│  • API calls routed through OneCLI Agent Vault                   │
-│  • No real credentials in environment or filesystem              │
+│  • API calls use forwarded provider config or OneCLI proxy        │
+│  • No raw `.env` mount; credentials are stdin-only or proxied     │
 └──────────────────────────────────────────────────────────────────┘
 ```

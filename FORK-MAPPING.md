@@ -59,14 +59,14 @@ The current fork plan keeps these customization areas:
 - MS Teams sidecar container and related docs.
 - Fork governance, mapping, and maintenance docs.
 - Selected fork-only skills and local tooling.
-- Setup and platform adjustments that are not tightly coupled to Bun-only behavior.
+- Setup and platform adjustments aligned to the Node/npm baseline.
 - Removal of obsolete Claude-only artifacts where needed.
 
 The current fork plan intentionally avoids or defers these areas:
 
-- Bun lockfile as fork identity.
+- Replay or preservation of Bun-specific divergence.
 - Bun-native SQLite migration.
-- Bun-specific runtime or test rewrites unless strictly required.
+- Bun-specific runtime or test rewrites except where removing stale drift.
 - The current container-skills remap approach.
   - Re-implement skills under the new approach later instead of replaying the old path remap strategy.
 

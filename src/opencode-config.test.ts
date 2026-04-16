@@ -102,14 +102,14 @@ describe('credential strategy resolution', () => {
 
   it('defaults to direct when the resolved credential exists in the environment', () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test');
-    expect(resolveCredentialStrategy(undefined, { provider: 'anthropic' })).toBe(
-      'direct',
-    );
+    expect(
+      resolveCredentialStrategy(undefined, { provider: 'anthropic' }),
+    ).toBe('direct');
   });
 
   it('defaults to onecli when no direct credential can be resolved', () => {
-    expect(resolveCredentialStrategy(undefined, { provider: 'anthropic' })).toBe(
-      'onecli',
-    );
+    expect(
+      resolveCredentialStrategy(undefined, { provider: 'anthropic' }),
+    ).toBe('onecli');
   });
 });

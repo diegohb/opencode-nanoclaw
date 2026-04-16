@@ -71,7 +71,7 @@ class TestSidecarChannel extends SidecarChannel {
 }
 
 function createRequest(responseBody: string) {
-  return (options: unknown, callback: (response: EventEmitter) => void) => {
+  return (_options: unknown, callback: (response: EventEmitter) => void) => {
     const response = new EventEmitter() as EventEmitter & {
       statusCode?: number;
     };

@@ -93,8 +93,10 @@ function usesOneCLIGateway(group: RegisteredGroup): boolean {
     group.containerConfig?.opencodeConfig,
   );
   return (
-    resolveCredentialStrategy(group.containerConfig?.credentialStrategy, config) ===
-    'onecli'
+    resolveCredentialStrategy(
+      group.containerConfig?.credentialStrategy,
+      config,
+    ) === 'onecli'
   );
 }
 

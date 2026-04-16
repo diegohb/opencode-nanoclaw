@@ -33,7 +33,6 @@ describe('remote-control', () => {
   let readFileSyncSpy: ReturnType<typeof vi.spyOn>;
   let writeFileSyncSpy: ReturnType<typeof vi.spyOn>;
   let unlinkSyncSpy: ReturnType<typeof vi.spyOn>;
-  let mkdirSyncSpy: ReturnType<typeof vi.spyOn>;
   let openSyncSpy: ReturnType<typeof vi.spyOn>;
   let closeSyncSpy: ReturnType<typeof vi.spyOn>;
 
@@ -44,9 +43,7 @@ describe('remote-control', () => {
     spawnMock.mockReset();
     stdoutFileContent = '';
 
-    mkdirSyncSpy = vi
-      .spyOn(fs, 'mkdirSync')
-      .mockImplementation(() => undefined as any);
+    vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined as any);
     writeFileSyncSpy = vi
       .spyOn(fs, 'writeFileSync')
       .mockImplementation(() => {});

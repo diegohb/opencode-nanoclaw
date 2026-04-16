@@ -95,7 +95,7 @@ From the main channel (your self-chat), you can manage groups and tasks:
 
 ## Customizing
 
-NanoClaw doesn't use configuration files. To make changes, just tell Claude Code what you want:
+NanoClaw doesn't use configuration files. To make changes, just tell OpenCode what you want:
 
 - "Change the trigger word to @Bob"
 - "Remember in the future to make responses shorter and more direct"
@@ -104,7 +104,7 @@ NanoClaw doesn't use configuration files. To make changes, just tell Claude Code
 
 Or run `/customize` for guided changes.
 
-The codebase is small enough that Claude can safely modify it.
+The codebase is small enough that OpenCode can safely modify it.
 
 ## Contributing
 
@@ -125,13 +125,13 @@ Skills we'd like to see:
 
 - macOS, Linux, or Windows (via WSL2)
 - Node.js 20+
-- [Claude Code](https://claude.ai/download)
+- [OpenCode](https://opencode.ai)
 - [Apple Container](https://github.com/apple/container) (macOS) or [Docker](https://docker.com/products/docker-desktop) (macOS/Linux)
 
 ## Architecture
 
 ```
-Channels --> SQLite --> Polling loop --> Container (Claude Agent SDK) --> Response
+Channels --> SQLite --> Polling loop --> Container (OpenCode Agent Runner) --> Response
 ```
 
 Single Node.js process. Channels are added via skills and self-register at startup — the orchestrator connects whichever ones have credentials present. Agents execute in isolated Linux containers with filesystem isolation. Only mounted directories are accessible. Per-group message queue with concurrency control. IPC via filesystem.
@@ -165,31 +165,34 @@ Agents run in containers, not behind application-level permission checks. They c
 
 **Why no configuration files?**
 
-We don't want configuration sprawl. Every user should customize NanoClaw so that the code does exactly what they want, rather than configuring a generic system. If you prefer having config files, you can tell Claude to add them.
+We don't want configuration sprawl. Every user should customize NanoClaw so that the code does exactly what they want, rather than configuring a generic system. If you prefer having config files, you can tell OpenCode to add them.
 
 **Can I use third-party or open-source models?**
 
-Yes. NanoClaw supports any Claude API-compatible model endpoint. Set these environment variables in your `.env` file:
+Yes. NanoClaw inherits provider support from OpenCode. The simplest direct-auth path is to set a supported provider key in your `.env` file, for example:
 
 ```bash
-ANTHROPIC_BASE_URL=https://your-api-endpoint.com
-ANTHROPIC_AUTH_TOKEN=your-token-here
+ANTHROPIC_API_KEY=...
+OPENAI_API_KEY=...
+OPENROUTER_API_KEY=...
+GEMINI_API_KEY=...
+OPENCODE_API_KEY=...
 ```
 
 This allows you to use:
-- Local models via [Ollama](https://ollama.ai) with an API proxy
-- Open-source models hosted on [Together AI](https://together.ai), [Fireworks](https://fireworks.ai), etc.
-- Custom model deployments with Anthropic-compatible APIs
+- Providers supported directly by OpenCode
+- Hosted model gateways such as OpenRouter
+- Self-hosted or proxy-backed endpoints configured through OpenCode provider settings
 
-Note: The model must support the Anthropic API format for best compatibility.
+For stronger credential isolation, you can optionally route a group through the OneCLI gateway instead of forwarding a provider key directly.
 
 **How do I debug issues?**
 
-Ask Claude Code. "Why isn't the scheduler running?" "What's in the recent logs?" "Why did this message not get a response?" That's the AI-native approach that underlies NanoClaw.
+Ask OpenCode. "Why isn't the scheduler running?" "What's in the recent logs?" "Why did this message not get a response?" That's the AI-native approach that underlies NanoClaw.
 
 **Why isn't the setup working for me?**
 
-If you have issues, during setup, Claude will try to dynamically fix them. If that doesn't work, run `claude`, then run `/debug`. If Claude finds an issue that is likely affecting other users, open a PR to modify the setup SKILL.md.
+If you have issues during setup, OpenCode will try to fix them dynamically. If that doesn't work, run `opencode`, then run `/debug`. If the issue is likely affecting other users, open a PR to modify the setup skill.
 
 **What changes will be accepted into the codebase?**
 

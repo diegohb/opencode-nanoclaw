@@ -12,7 +12,7 @@ import { execSync, spawn, ChildProcess } from 'child_process';
 import fs from 'fs';
 import http from 'http';
 
-import { Channel, OnInboundMessage, OnChatMetadata } from './types.js';
+import { Channel } from './types.js';
 import { ChannelOpts } from './channels/registry.js';
 import { readEnvFile } from './env.js';
 import { logger } from './logger.js';
