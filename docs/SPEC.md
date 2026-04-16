@@ -413,7 +413,7 @@ At container spawn time, NanoClaw reads the named env var from the host and forw
 
 #### OneCLI Gateway (`'onecli'`) — optional, stronger isolation
 
-When `credentialStrategy` is `'onecli'` (or omitted — backward-compatible default), NanoClaw calls `onecli.applyContainerConfig()` to route outbound HTTPS through the OneCLI proxy. Credentials never appear in the container process at all. See [SECURITY.md](SECURITY.md) for the full gateway model.
+When `credentialStrategy` is `'onecli'`, NanoClaw calls `onecli.applyContainerConfig()` to route outbound HTTPS through the OneCLI proxy. If the strategy is omitted, NanoClaw now prefers direct auth when it can resolve a host credential and falls back to OneCLI otherwise. Credentials never appear in the container process at all when the OneCLI path is used. See [SECURITY.md](SECURITY.md) for the full gateway model.
 
 Only the variables required by the host setup flow should be present in `.env`. Containers should not rely on local Claude credential files.
 

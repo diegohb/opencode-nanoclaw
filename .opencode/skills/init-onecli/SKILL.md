@@ -1,11 +1,11 @@
 ---
 name: init-onecli
-description: Install and initialize OneCLI Agent Vault. Migrates existing .env credentials to the vault. Use after /update-nanoclaw brings in OneCLI as a breaking change, or for first-time OneCLI setup.
+description: Install and initialize the optional OneCLI Agent Vault on Docker. Migrates existing .env credentials to the vault for users who want stronger credential isolation.
 ---
 
 # Initialize OneCLI Agent Vault
 
-This skill installs OneCLI, configures the Agent Vault gateway, and migrates any existing `.env` credentials into it. Run this after `/update-nanoclaw` introduces OneCLI as a breaking change, or any time OneCLI needs to be set up from scratch.
+This skill installs OneCLI, configures the Agent Vault gateway, and migrates any existing `.env` credentials into it. Use it only when the user explicitly wants the optional OneCLI gateway on Docker. The default NanoClaw path is direct auth from `.env`, so this skill is no longer part of required first-time setup.
 
 **Principle:** When something is broken or missing, fix it. Don't tell the user to go fix it themselves unless it genuinely requires their manual action (e.g. pasting a token).
 
@@ -30,27 +30,27 @@ If an Anthropic secret exists, tell the user OneCLI is already configured and wo
 
 If they choose to keep, skip to Phase 5 (Verify). If they choose to reconfigure, continue.
 
-### Check for native credential proxy
+### Check for direct-auth setup
 
 ```bash
-grep "credential-proxy" src/index.ts 2>/dev/null
+grep -E 'ANTHROPIC_API_KEY|CLAUDE_CODE_OAUTH_TOKEN|OPENAI_API_KEY|OPENROUTER_API_KEY|OPENCODE_API_KEY|GEMINI_API_KEY|GROQ_API_KEY|GITHUB_TOKEN' .env 2>/dev/null
 ```
 
-If `startCredentialProxy` is imported, the native credential proxy skill is active. Tell the user: "You're currently using the native credential proxy (`.env`-based). This skill will switch you to OneCLI's Agent Vault, which adds per-agent policies and rate limits. Your `.env` credentials will be migrated to the vault."
+If credentials are found in `.env`, tell the user: "You're currently using direct auth from `.env`. This skill will switch you to the optional OneCLI Agent Vault, which adds per-agent policies and keeps raw credentials out of containers. Your `.env` credentials can be migrated to the vault." 
 
 Use AskUserQuestion:
 1. **Continue** — description: "Switch to OneCLI Agent Vault."
-2. **Cancel** — description: "Keep the native credential proxy."
+2. **Cancel** — description: "Keep direct auth from `.env`."
 
 If they cancel, stop.
 
-### Check the codebase expects OneCLI
+### Check the codebase supports OneCLI
 
 ```bash
 grep "@onecli-sh/sdk" package.json
 ```
 
-If `@onecli-sh/sdk` is NOT in package.json, the codebase hasn't been updated to use OneCLI yet. Tell the user to run `/update-nanoclaw` first to get the OneCLI integration, then retry `/init-onecli`. Stop here.
+If `@onecli-sh/sdk` is NOT in package.json, this checkout does not support the optional OneCLI gateway. Tell the user to stay on direct auth for now. Stop here.
 
 ## Phase 2: Install OneCLI
 

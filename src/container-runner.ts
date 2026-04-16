@@ -38,7 +38,7 @@ import {
   RegisteredGroup,
 } from './types.js';
 
-const onecli = new OneCLI({ url: ONECLI_URL });
+const onecli = ONECLI_URL ? new OneCLI({ url: ONECLI_URL }) : null;
 
 // Sentinel markers for robust output parsing (must match agent-runner)
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
@@ -294,19 +294,26 @@ async function buildContainerArgs(
   args.push('-e', `TZ=${TIMEZONE}`);
 
   if (credentialStrategy === 'onecli') {
-    // OneCLI gateway handles credential injection — containers never see raw secrets.
-    // The gateway intercepts HTTPS traffic and injects API keys or OAuth tokens.
-    const onecliApplied = await onecli.applyContainerConfig(args, {
-      addHostMapping: false, // Nanoclaw already handles host gateway
-      agent: agentIdentifier,
-    });
-    if (onecliApplied) {
-      logger.info({ containerName }, 'OneCLI gateway config applied');
-    } else {
+    if (!onecli) {
       logger.warn(
         { containerName },
-        'OneCLI gateway not reachable — container will have no credentials',
+        'OneCLI strategy selected but ONECLI_URL is not configured — container will have no credentials',
       );
+    } else {
+      // OneCLI gateway handles credential injection — containers never see raw secrets.
+      // The gateway intercepts HTTPS traffic and injects API keys or OAuth tokens.
+      const onecliApplied = await onecli.applyContainerConfig(args, {
+        addHostMapping: false, // Nanoclaw already handles host gateway
+        agent: agentIdentifier,
+      });
+      if (onecliApplied) {
+        logger.info({ containerName }, 'OneCLI gateway config applied');
+      } else {
+        logger.warn(
+          { containerName },
+          'OneCLI gateway not reachable — container will have no credentials',
+        );
+      }
     }
   } else {
     logger.info(
@@ -370,7 +377,9 @@ export async function runContainerAgent(
     );
   }
 
-  // Determine credential strategy for this group (default: 'onecli' for backward compat)
+  // Determine credential strategy for this group.
+  // Default behavior is direct auth when a host credential is resolvable,
+  // otherwise OneCLI fallback.
   const credentialStrategy: CredentialStrategy = resolveCredentialStrategy(
     group.containerConfig?.credentialStrategy,
     opencodeConfig,

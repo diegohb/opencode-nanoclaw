@@ -86,7 +86,7 @@ let messageLoopRunning = false;
 const channels: Channel[] = [];
 const queue = new GroupQueue();
 
-const onecli = new OneCLI({ url: ONECLI_URL });
+const onecli = ONECLI_URL ? new OneCLI({ url: ONECLI_URL }) : null;
 
 function usesOneCLIGateway(group: RegisteredGroup): boolean {
   const { config } = resolveEffectiveOpencodeConfig(
@@ -102,6 +102,13 @@ function usesOneCLIGateway(group: RegisteredGroup): boolean {
 
 function ensureOneCLIAgent(jid: string, group: RegisteredGroup): void {
   if (group.isMain) return;
+  if (!onecli) {
+    logger.debug(
+      { jid, group: group.name },
+      'OneCLI disabled: no ONECLI_URL configured',
+    );
+    return;
+  }
   const identifier = group.folder.toLowerCase().replace(/_/g, '-');
   onecli.ensureAgent({ name: group.name, identifier }).then(
     (res) => {

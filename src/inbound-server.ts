@@ -3,8 +3,8 @@
  *
  * Sidecar containers (e.g. Teams) forward inbound messages here via
  * POST /channel/inbound. This server replaces the old credential-proxy
- * approach — credentials are now managed by OneCLI, so the proxy is gone
- * and this is the sole inbound endpoint.
+ * approach — sidecar inbound traffic now comes here directly, and this is
+ * the sole inbound endpoint regardless of credential strategy.
  */
 import http from 'http';
 
