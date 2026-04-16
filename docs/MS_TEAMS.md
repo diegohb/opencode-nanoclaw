@@ -20,7 +20,7 @@ The sidecar container runs the Bot Framework SDK and handles all Teams-specific 
 ### Prerequisites
 
 - NanoClaw installed and configured (run `/setup` first)
-- Docker or Apple Container runtime
+- Docker runtime
 - An Azure account (free tier works)
 - Admin access to your Teams workspace (or ability to sideload apps)
 

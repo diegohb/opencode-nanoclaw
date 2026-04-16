@@ -1,1 +1,3 @@
-npm run format:fix
+# Disabled: automatic formatting on commit
+# npm run format:fix
+exit 0

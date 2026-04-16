@@ -13,10 +13,8 @@ Source snapshot: `git branch -r` after `git fetch upstream`
 
 | Skill Branch | Source Remote | Status | Notes |
 | --- | --- | --- | --- |
-| `upstream/skill/apple-container` | `upstream` (`qwibitai/nanoclaw`) | discovered | Candidate for shared runtime behavior changes only |
 | `upstream/skill/channel-formatting` | `upstream` (`qwibitai/nanoclaw`) | discovered | Evaluate if channel formatting belongs in shared base |
 | `upstream/skill/compact` | `upstream` (`qwibitai/nanoclaw`) | discovered | Operational quality of life; likely shared-safe |
-| `upstream/skill/emacs` | `upstream` (`qwibitai/nanoclaw`) | discovered | Editor-specific; likely optional |
 | `upstream/skill/migrate-from-openclaw` | `upstream` (`qwibitai/nanoclaw`) | discovered | Migration utility; usually one-time |
 | `upstream/skill/migrate-nanoclaw` | `upstream` (`qwibitai/nanoclaw`) | discovered | Migration utility; usually one-time |
 | `upstream/skill/native-credential-proxy` | `upstream` (`qwibitai/nanoclaw`) | discovered | Security/runtime behavior; evaluate carefully |

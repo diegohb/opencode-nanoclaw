@@ -14,7 +14,7 @@ description: Install the claw CLI tool — run NanoClaw agent containers from th
 - Resume a previous session with `-s <session-id>`
 - Read prompts from stdin (`--pipe`) for scripting and piping
 - List all registered groups with `--list-groups`
-- Auto-detects `container` or `docker` runtime (or override with `--runtime`)
+- Uses the Docker runtime (or override with `--runtime docker`)
 - Prints the agent's response to stdout; session ID to stderr
 - Verbose mode (`-v`) shows the command, redacted payload, and exit code
 
@@ -22,7 +22,7 @@ description: Install the claw CLI tool — run NanoClaw agent containers from th
 
 - Python 3.8 or later
 - NanoClaw installed with a built and tagged container image (`nanoclaw-agent:latest`)
-- Either `container` (Apple Container, macOS 15+) or `docker` available in `PATH`
+- Docker available in `PATH`
 
 ## Install
 
@@ -102,9 +102,9 @@ claw --timeout 600 "Run the full analysis"
 
 ## Troubleshooting
 
-### "neither 'container' nor 'docker' found"
+### "docker not found"
 
-Install Docker Desktop or Apple Container (macOS 15+), or pass `--runtime` explicitly.
+Install Docker Desktop (macOS) or Docker Engine (Linux), then retry.
 
 ### "no secrets found in .env"
 
