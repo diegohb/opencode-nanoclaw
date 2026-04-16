@@ -48,7 +48,8 @@ export interface OpencodeConfig {
  * - `'onecli'`: The OneCLI gateway intercepts container HTTPS traffic and
  *   injects tokens. `ContainerInput.secrets` is not populated by the host.
  *
- * Defaults to `'onecli'` when not set, preserving backward compatibility.
+ * When omitted, NanoClaw prefers `'direct'` if it can resolve a host-side
+ * provider credential and otherwise falls back to `'onecli'`.
  */
 export type CredentialStrategy = 'direct' | 'onecli';
 
@@ -58,7 +59,7 @@ export interface ContainerConfig {
   opencodeConfig?: OpencodeConfig;
   /**
    * Credential injection strategy for this group's containers.
-   * Defaults to 'onecli' when omitted.
+   * When omitted, NanoClaw prefers direct auth and falls back to OneCLI.
    */
   credentialStrategy?: CredentialStrategy;
 }

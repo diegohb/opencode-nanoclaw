@@ -20,6 +20,10 @@ import {
   getRegisteredChannelNames,
 } from './channels/registry.js';
 import {
+  resolveCredentialStrategy,
+  resolveEffectiveOpencodeConfig,
+} from './opencode-config.js';
+import {
   startInboundServer,
   registerSidecarCallback,
 } from './inbound-server.js';
@@ -83,6 +87,16 @@ const channels: Channel[] = [];
 const queue = new GroupQueue();
 
 const onecli = new OneCLI({ url: ONECLI_URL });
+
+function usesOneCLIGateway(group: RegisteredGroup): boolean {
+  const { config } = resolveEffectiveOpencodeConfig(
+    group.containerConfig?.opencodeConfig,
+  );
+  return (
+    resolveCredentialStrategy(group.containerConfig?.credentialStrategy, config) ===
+    'onecli'
+  );
+}
 
 function ensureOneCLIAgent(jid: string, group: RegisteredGroup): void {
   if (group.isMain) return;
@@ -186,7 +200,7 @@ function registerGroup(jid: string, group: RegisteredGroup): void {
 
   // Ensure a corresponding OneCLI agent exists (best-effort, non-blocking)
   // Skip when the group uses direct credential strategy — no gateway agent needed.
-  if (group.containerConfig?.credentialStrategy !== 'direct') {
+  if (usesOneCLIGateway(group)) {
     ensureOneCLIAgent(jid, group);
   }
 
@@ -584,7 +598,9 @@ async function main(): Promise<void> {
   // Ensure OneCLI agents exist for all registered groups.
   // Recovers from missed creates (e.g. OneCLI was down at registration time).
   for (const [jid, group] of Object.entries(registeredGroups)) {
-    ensureOneCLIAgent(jid, group);
+    if (usesOneCLIGateway(group)) {
+      ensureOneCLIAgent(jid, group);
+    }
   }
 
   restoreRemoteControl();

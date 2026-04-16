@@ -86,6 +86,16 @@ describe('credentials detection', () => {
     expect(hasConfiguredCredentials(content)).toBe(true);
   });
 
+  it('detects OPENAI_API_KEY in env content', () => {
+    const content = 'OPENAI_API_KEY=sk-openai-test';
+    expect(hasConfiguredCredentials(content)).toBe(true);
+  });
+
+  it('detects OPENCODE_API_KEY in env content', () => {
+    const content = 'OPENCODE_API_KEY=oc-test';
+    expect(hasConfiguredCredentials(content)).toBe(true);
+  });
+
   it('does not treat ONECLI_URL as a credential by itself', () => {
     const content = 'ONECLI_URL=http://localhost:10254';
     expect(hasConfiguredCredentials(content)).toBe(false);
@@ -108,6 +118,22 @@ describe('direct provider credentials detection', () => {
 
   it('detects OPENROUTER_API_KEY as direct credential', () => {
     expect(hasDirectProviderCredentials('OPENROUTER_API_KEY=or-test')).toBe(true);
+  });
+
+  it('detects GEMINI_API_KEY as direct credential', () => {
+    expect(hasDirectProviderCredentials('GEMINI_API_KEY=gm-test')).toBe(true);
+  });
+
+  it('detects GROQ_API_KEY as direct credential', () => {
+    expect(hasDirectProviderCredentials('GROQ_API_KEY=gr-test')).toBe(true);
+  });
+
+  it('detects GITHUB_TOKEN as direct credential', () => {
+    expect(hasDirectProviderCredentials('GITHUB_TOKEN=gh-test')).toBe(true);
+  });
+
+  it('detects OPENCODE_API_KEY as direct credential', () => {
+    expect(hasDirectProviderCredentials('OPENCODE_API_KEY=oc-test')).toBe(true);
   });
 
   it('detects CLAUDE_CODE_OAUTH_TOKEN as direct credential', () => {

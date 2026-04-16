@@ -28,6 +28,11 @@ import {
 import { OneCLI } from '@onecli-sh/sdk';
 import { validateAdditionalMounts } from './mount-security.js';
 import {
+  resolveApiKeyEnvVar,
+  resolveCredentialStrategy,
+  resolveEffectiveOpencodeConfig,
+} from './opencode-config.js';
+import {
   CredentialStrategy,
   OpencodeConfig,
   RegisteredGroup,
@@ -78,39 +83,6 @@ const OPENCODE_DEFAULT_MOUNTS = [
 ];
 
 /**
- * Read model and small_model from the host's OpenCode global config.
- * Only these two fields are forwarded — credentials and plugin-specific
- * settings are excluded so the container doesn't need the host environment.
- * Returns null when no config or no model fields are found.
- */
-function readHostOpencodeModel(): {
-  model?: string;
-  small_model?: string;
-} | null {
-  const cfgPath = path.join(
-    os.homedir(),
-    '.config',
-    'opencode',
-    'opencode.json',
-  );
-  if (!fs.existsSync(cfgPath)) return null;
-  try {
-    const raw = fs.readFileSync(cfgPath, 'utf-8');
-    // Strip JSONC comments (// and /* */ style)
-    const stripped = raw
-      .replace(/\/\/[^\n]*/g, '')
-      .replace(/\/\*[\s\S]*?\*\//g, '');
-    const parsed = JSON.parse(stripped) as Record<string, unknown>;
-    const model = typeof parsed.model === 'string' ? parsed.model : undefined;
-    const small_model =
-      typeof parsed.small_model === 'string' ? parsed.small_model : undefined;
-    return model || small_model ? { model, small_model } : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Gather provider secrets from the host environment for the 'direct'
  * credential strategy. Reads the value of each required env var and returns
  * a secrets map keyed by env var name. Only non-empty values are included.
@@ -119,10 +91,11 @@ function readHostOpencodeModel(): {
  */
 function gatherDirectSecrets(config: OpencodeConfig): Record<string, string> {
   const secrets: Record<string, string> = {};
-  if (config.apiKey) {
-    const value = process.env[config.apiKey];
+  const apiKeyEnvVar = resolveApiKeyEnvVar(config);
+  if (apiKeyEnvVar) {
+    const value = process.env[apiKeyEnvVar];
     if (value) {
-      secrets[config.apiKey] = value;
+      secrets[apiKeyEnvVar] = value;
     }
   }
   return secrets;
@@ -132,31 +105,10 @@ function resolveOpencodeConfig(
   group: RegisteredGroup,
   input: ContainerInput,
 ): { config?: OpencodeConfig; usedHostModelDefaults: boolean } {
-  const config: OpencodeConfig = {
-    ...group.containerConfig?.opencodeConfig,
-    ...input.opencodeConfig,
-  };
-
-  let usedHostModelDefaults = false;
-  if (!config.model && !config.small_model) {
-    const hostModel = readHostOpencodeModel();
-    if (hostModel) {
-      config.model = hostModel.model;
-      config.small_model = hostModel.small_model;
-      usedHostModelDefaults = Boolean(hostModel.model || hostModel.small_model);
-    }
-  }
-
-  if (
-    !config.provider &&
-    !config.apiKey &&
-    !config.model &&
-    !config.small_model
-  ) {
-    return { config: undefined, usedHostModelDefaults };
-  }
-
-  return { config, usedHostModelDefaults };
+  return resolveEffectiveOpencodeConfig(
+    group.containerConfig?.opencodeConfig,
+    input.opencodeConfig,
+  );
 }
 
 function buildOpencodeDefaultMounts(projectRoot: string): VolumeMount[] {
@@ -180,7 +132,6 @@ function buildOpencodeDefaultMounts(projectRoot: string): VolumeMount[] {
 function buildVolumeMounts(
   group: RegisteredGroup,
   isMain: boolean,
-  credentialStrategy: CredentialStrategy,
 ): VolumeMount[] {
   const mounts: VolumeMount[] = [];
   const projectRoot = process.cwd();
@@ -420,8 +371,10 @@ export async function runContainerAgent(
   }
 
   // Determine credential strategy for this group (default: 'onecli' for backward compat)
-  const credentialStrategy: CredentialStrategy =
-    group.containerConfig?.credentialStrategy ?? 'onecli';
+  const credentialStrategy: CredentialStrategy = resolveCredentialStrategy(
+    group.containerConfig?.credentialStrategy,
+    opencodeConfig,
+  );
 
   // For 'direct' strategy, gather provider secrets from the host environment
   // and attach them to the container input so writeOpencodeConfig() can use them.
@@ -441,7 +394,7 @@ export async function runContainerAgent(
     }
   }
 
-  const mounts = buildVolumeMounts(group, input.isMain, credentialStrategy);
+  const mounts = buildVolumeMounts(group, input.isMain);
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
   // Main group uses the default OneCLI agent; others use their own agent.

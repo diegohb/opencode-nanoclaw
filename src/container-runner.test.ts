@@ -353,7 +353,9 @@ describe('container-runner timeout behavior', () => {
     expect(containerArgs.some((arg) => arg.includes('package.json'))).toBe(
       false,
     );
-    expect(containerArgs.some((arg) => arg.includes('bun.lock'))).toBe(false);
+    expect(containerArgs.some((arg) => arg.includes('package-lock.json'))).toBe(
+      false,
+    );
     expect(containerArgs.some((arg) => arg.includes('node_modules'))).toBe(
       false,
     );
@@ -373,7 +375,7 @@ describe('container-runner credential strategy', () => {
     vi.unstubAllEnvs();
   });
 
-  it('onecli strategy (default): calls applyContainerConfig and sends no secrets', async () => {
+  it('omitted strategy falls back to onecli when no direct credential is available', async () => {
     const inputChunks: string[] = [];
     fakeProc.stdin.on('data', (chunk) => inputChunks.push(chunk.toString()));
 
@@ -381,7 +383,6 @@ describe('container-runner credential strategy', () => {
       {
         ...testGroup,
         containerConfig: {
-          // credentialStrategy omitted → defaults to 'onecli'
           opencodeConfig: {
             provider: 'anthropic',
             apiKey: 'ANTHROPIC_API_KEY',
@@ -403,6 +404,42 @@ describe('container-runner credential strategy', () => {
     // No secrets should be forwarded to the container
     const parsed = JSON.parse(inputChunks.join(''));
     expect(parsed.secrets).toBeUndefined();
+  });
+
+  it('omitted strategy prefers direct auth when a host credential is resolvable', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-ant-test-default');
+
+    const inputChunks: string[] = [];
+    fakeProc.stdin.on('data', (chunk) => inputChunks.push(chunk.toString()));
+
+    const resultPromise = runContainerAgent(
+      {
+        ...testGroup,
+        containerConfig: {
+          opencodeConfig: {
+            provider: 'anthropic',
+          },
+        },
+      },
+      testInput,
+      () => {},
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    expect(mockApplyContainerConfig).not.toHaveBeenCalled();
+
+    const parsed = JSON.parse(inputChunks.join(''));
+    expect(parsed.opencodeConfig).toMatchObject({
+      provider: 'anthropic',
+      apiKey: 'ANTHROPIC_API_KEY',
+    });
+    expect(parsed.secrets).toMatchObject({
+      ANTHROPIC_API_KEY: 'sk-ant-test-default',
+    });
   });
 
   it('direct strategy: skips applyContainerConfig and forwards secret from env', async () => {
@@ -507,5 +544,65 @@ describe('container-runner credential strategy', () => {
 
     const parsed = JSON.parse(inputChunks.join(''));
     expect(parsed.secrets).toBeUndefined();
+  });
+
+  it('direct strategy infers apiKey env var from provider when omitted', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'sk-openai-test-directvalue');
+
+    const inputChunks: string[] = [];
+    fakeProc.stdin.on('data', (chunk) => inputChunks.push(chunk.toString()));
+
+    const resultPromise = runContainerAgent(
+      {
+        ...testGroup,
+        containerConfig: {
+          credentialStrategy: 'direct',
+          opencodeConfig: {
+            provider: 'openai',
+          },
+        },
+      },
+      testInput,
+      () => {},
+    );
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    const parsed = JSON.parse(inputChunks.join(''));
+    expect(parsed.opencodeConfig).toMatchObject({
+      provider: 'openai',
+      apiKey: 'OPENAI_API_KEY',
+    });
+    expect(parsed.secrets).toMatchObject({
+      OPENAI_API_KEY: 'sk-openai-test-directvalue',
+    });
+  });
+
+  it('omitted strategy uses default opencode direct auth when OPENCODE_API_KEY is available', async () => {
+    vi.stubEnv('OPENCODE_API_KEY', 'oc-test-default');
+
+    const inputChunks: string[] = [];
+    fakeProc.stdin.on('data', (chunk) => inputChunks.push(chunk.toString()));
+
+    const resultPromise = runContainerAgent(testGroup, testInput, () => {});
+
+    await vi.advanceTimersByTimeAsync(10);
+    fakeProc.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(10);
+    await resultPromise;
+
+    expect(mockApplyContainerConfig).not.toHaveBeenCalled();
+
+    const parsed = JSON.parse(inputChunks.join(''));
+    expect(parsed.opencodeConfig).toMatchObject({
+      provider: 'opencode',
+      apiKey: 'OPENCODE_API_KEY',
+    });
+    expect(parsed.secrets).toMatchObject({
+      OPENCODE_API_KEY: 'oc-test-default',
+    });
   });
 });
