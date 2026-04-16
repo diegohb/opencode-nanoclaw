@@ -82,7 +82,7 @@ Provider API keys are read from the host environment at container spawn time and
 
 #### OneCLI Gateway (optional, stronger isolation)
 
-When `credentialStrategy` is `'onecli'` (or omitted), NanoClaw calls `applyContainerConfig()` to route outbound HTTPS through the [OneCLI Agent Vault](https://github.com/onecli/onecli) proxy.
+When `credentialStrategy` is `'onecli'`, NanoClaw calls `applyContainerConfig()` to route outbound HTTPS through the [OneCLI Agent Vault](https://github.com/onecli/onecli) proxy. If the strategy is omitted, NanoClaw prefers direct auth when it can resolve a provider credential from the host and only falls back to OneCLI when it cannot.
 
 **How it works:**
 1. Credentials are registered once with `onecli secrets create`, stored and managed by OneCLI

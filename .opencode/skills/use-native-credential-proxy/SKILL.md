@@ -1,11 +1,17 @@
 ---
 name: use-native-credential-proxy
-description: Replace OneCLI gateway with the built-in credential proxy. For users who want simple .env-based credential management without installing OneCLI. Reads API key or OAuth token from .env and injects into container API requests.
+description: Legacy migration skill for old proxy-based branches. Do not use on the current NanoClaw branch, which already defaults to direct auth from .env without the old proxy implementation.
 ---
 
-# Use Native Credential Proxy
+# Legacy Native Credential Proxy Skill
 
-This skill replaces the OneCLI gateway with NanoClaw's built-in credential proxy. Containers get credentials injected via a local HTTP proxy that reads from `.env` — no external services needed.
+This skill is deprecated for the current NanoClaw branch. NanoClaw now defaults to direct auth from `.env` and no longer uses the old native credential proxy implementation. Do not apply this skill unless the user is explicitly working on an older historical branch that still contains `src/credential-proxy.ts`.
+
+For current branches:
+- Use `/setup` and choose direct auth for the normal path.
+- Use `/init-onecli` only if the user explicitly wants the optional OneCLI gateway on Docker.
+
+If the user is on the current branch, stop here.
 
 ## Phase 1: Pre-flight
 
