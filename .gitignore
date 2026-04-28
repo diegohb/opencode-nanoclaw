@@ -38,4 +38,12 @@ groups/*
 # Skills system (local per-installation state)
 .nanoclaw/
 
+# Local tooling (fork-only, never shared)
+.grepai/
+.serena/
+.opencode/
+
+# Local test artifacts (fork-only, never shared)
+tests/
+
 agents-sdk-docs
