@@ -17,12 +17,18 @@ import type { Session } from '../../types.js';
 
 const TEST_DIR = '/tmp/nanoclaw-recurrence-test';
 const DB_PATH = path.join(TEST_DIR, 'inbound.db');
+let currentDb: ReturnType<typeof openInboundDb> | null = null;
 
 function freshDb() {
+  if (currentDb) {
+    currentDb.close();
+    currentDb = null;
+  }
   if (fs.existsSync(TEST_DIR)) fs.rmSync(TEST_DIR, { recursive: true });
   fs.mkdirSync(TEST_DIR, { recursive: true });
   ensureSchema(DB_PATH, 'inbound');
-  return openInboundDb(DB_PATH);
+  currentDb = openInboundDb(DB_PATH);
+  return currentDb;
 }
 
 function fakeSession(): Session {
@@ -39,6 +45,10 @@ function fakeSession(): Session {
 }
 
 afterEach(() => {
+  if (currentDb) {
+    currentDb.close();
+    currentDb = null;
+  }
   if (fs.existsSync(TEST_DIR)) fs.rmSync(TEST_DIR, { recursive: true });
 });
 
